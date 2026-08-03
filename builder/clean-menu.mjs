@@ -32,8 +32,14 @@ await mutate("client/index.html", text => {
 await mutate("client/src/scripts/ui.ts", text => {
   text = replaceRequired(
     text,
+    "    for (const [regionID, { flag }] of regionMap) {",
+    "    for (const [regionID, { flag, name }] of regionMap) {",
+    "server-list region destructuring"
+  );
+  text = replaceRequired(
+    text,
     '<span class="server-name">${flag ?? ""}${translate(`region_${regionID}` as TranslationKeys)}</span>',
-    '<span class="server-name">${flag ?? ""}${region.name}</span>',
+    '<span class="server-name">${flag ?? ""}${name}</span>',
     "server list region label"
   );
   text = replaceRequired(
