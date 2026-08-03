@@ -23,7 +23,7 @@ permissions:
 
 env:
   UPSTREAM_COMMIT: 85df5067b19a876cac4304232cc1e68ff1b07c7f
-  RELEASE_VERSION: 1.1.1
+  RELEASE_VERSION: 1.1.2
   PUBLIC_URL: https://shootup.shring.net
 
 jobs:
@@ -48,10 +48,10 @@ jobs:
       - name: Upload Actions artifact
         uses: actions/upload-artifact@v4
         with:
-          name: shring-outbreak-pterodactyl-v1.1.1
+          name: shring-outbreak-pterodactyl-v1.1.2
           path: |
-            Shring-Outbreak-Suroi-v1.1.1-PREBUILT-FLAT.zip
-            Shring-Outbreak-Suroi-v1.1.1-PREBUILT-FLAT.zip.sha256
+            Shring-Outbreak-Suroi-v1.1.2-PREBUILT-FLAT.zip
+            Shring-Outbreak-Suroi-v1.1.2-PREBUILT-FLAT.zip.sha256
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
@@ -60,10 +60,18 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.1
-          name: Shring Outbreak v1.1.1
+          tag_name: v1.1.2
+          name: Shring Outbreak v1.1.2
           body: |
             Precompiled flat Pterodactyl deployment for shootup.shring.net.
+
+            Menu cleanup:
+            - centered main play panel
+            - removed marquee text and featured creator panels
+            - removed Wiki, Donate, Discord, and other Suroi social links
+            - replaced inactive team controls with one clear Play button
+            - corrected the Shring Network region label
+            - suppressed harmless browser-aborted stream warnings
 
             Extract directly into /home/container and start with:
 
@@ -71,7 +79,7 @@ jobs:
 
             Guest play is enabled and no account is required.
           files: |
-            Shring-Outbreak-Suroi-v1.1.1-PREBUILT-FLAT.zip
-            Shring-Outbreak-Suroi-v1.1.1-PREBUILT-FLAT.zip.sha256
+            Shring-Outbreak-Suroi-v1.1.2-PREBUILT-FLAT.zip
+            Shring-Outbreak-Suroi-v1.1.2-PREBUILT-FLAT.zip.sha256
           fail_on_unmatched_files: true
           make_latest: true
