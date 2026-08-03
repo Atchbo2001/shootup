@@ -2,7 +2,7 @@
 set -euo pipefail
 
 : "${UPSTREAM_COMMIT:=85df5067b19a876cac4304232cc1e68ff1b07c7f}"
-: "${RELEASE_VERSION:=1.1.3}"
+: "${RELEASE_VERSION:=1.1.4}"
 : "${PUBLIC_URL:=https://shootup.shring.net}"
 
 ROOT="${GITHUB_WORKSPACE:-$(pwd)}"
@@ -24,12 +24,13 @@ test -f "$SOURCE/package.json"
 echo "[build] Applying Shring changes"
 node "$ROOT/builder/apply-patches.mjs" "$SOURCE" "$PUBLIC_URL"
 node "$ROOT/builder/clean-menu.mjs" "$SOURCE"
+node "$ROOT/builder/queue-tuning.mjs" "$SOURCE"
 
 echo "[build] Installing build dependencies"
 cd "$SOURCE"
 bun install --frozen-lockfile
 
-echo "[build] Validating the modified menu source"
+echo "[build] Validating modified source and server capacity"
 grep -Fq 'for (const [regionID, { flag, name }] of regionMap)' client/src/scripts/ui.ts
 grep -Fq '<span class="server-name">${flag ?? ""}${name}</span>' client/src/scripts/ui.ts
 if grep -Fq '${region.name}' client/src/scripts/ui.ts; then
@@ -37,6 +38,7 @@ if grep -Fq '${region.name}' client/src/scripts/ui.ts; then
   exit 1
 fi
 bunx --bun biome lint client/src/scripts/ui.ts
+node -e 'const c=require("./server/config.json"); if(c.maxGames!==4) process.exit(1); if(c.mapScaleRanges?.[0]?.gameSpawnWindow!==180) process.exit(1); if(c.mapScaleRanges?.[0]?.scale!==0.7) process.exit(1)'
 
 echo "[build] Compiling production browser client"
 NODE_ENV=production bun run build:client
@@ -130,6 +132,7 @@ curl --fail --silent http://127.0.0.1:31025/api/serverInfo > server-info.json
 curl --fail --silent http://127.0.0.1:31025/api/getGame > game.json
 cat server-info.json
 cat game.json
+grep -q "Listening on 127.0.0.1:8001" smoke-test.log
 cleanup
 trap - EXIT
 
