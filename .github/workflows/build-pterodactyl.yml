@@ -28,7 +28,7 @@ env:
 
 jobs:
   build:
-    name: Build, type-check, smoke test, and package
+    name: Build, validate, smoke test, and package
     runs-on: ubuntu-24.04
     timeout-minutes: 45
 
@@ -68,7 +68,7 @@ jobs:
             Fixes:
             - resolves the `region is not defined` browser crash
             - prevents the infinite Connecting spinner
-            - type-checks the browser client before building
+            - validates and lints the modified menu source before building
             - keeps the centered, simplified Shring menu from v1.1.2
 
             Extract directly into /home/container and start with:
