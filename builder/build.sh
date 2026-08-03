@@ -2,7 +2,7 @@
 set -euo pipefail
 
 : "${UPSTREAM_COMMIT:=85df5067b19a876cac4304232cc1e68ff1b07c7f}"
-: "${RELEASE_VERSION:=1.1.0}"
+: "${RELEASE_VERSION:=1.1.2}"
 : "${PUBLIC_URL:=https://shootup.shring.net}"
 
 ROOT="${GITHUB_WORKSPACE:-$(pwd)}"
@@ -23,6 +23,7 @@ test -f "$SOURCE/package.json"
 
 echo "[build] Applying Shring changes"
 node "$ROOT/builder/apply-patches.mjs" "$SOURCE" "$PUBLIC_URL"
+node "$ROOT/builder/clean-menu.mjs" "$SOURCE"
 
 echo "[build] Installing build dependencies"
 cd "$SOURCE"
@@ -35,6 +36,7 @@ test -s client/dist/index.html
 test -d client/dist/scripts
 test -d client/dist/img
 grep -q "Shring Outbreak" client/dist/index.html
+grep -q "Free-for-all online multiplayer" client/dist/index.html
 if grep -R -q "127.0.0.1:8000" client/dist/scripts; then
   echo "Compiled client still contains the development server address" >&2
   exit 1
@@ -114,6 +116,7 @@ cat health.json
 grep -q '"ok":true' health.json
 grep -q '"guestPlay":true' health.json
 curl --fail --silent http://127.0.0.1:31025/ | grep -q "Shring Outbreak"
+curl --fail --silent http://127.0.0.1:31025/ | grep -q "Free-for-all online multiplayer"
 curl --fail --silent http://127.0.0.1:31025/api/serverInfo > server-info.json
 curl --fail --silent http://127.0.0.1:31025/api/getGame > game.json
 cat server-info.json
