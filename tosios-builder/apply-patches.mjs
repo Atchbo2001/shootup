@@ -1,41 +1,69 @@
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const [sourceArg] = process.argv.slice(2);
 if (!sourceArg) throw new Error('Usage: node apply-patches.mjs <tosios-source>');
 
 const root = path.resolve(sourceArg);
-const VERSION = '3.0.0';
+const builderDir = path.dirname(fileURLToPath(import.meta.url));
+const VERSION = '3.1.0';
 const UPSTREAM = '98de136e524d25c5877adc9523c9445bc2b4a262';
+const PATCH_SHA256 = '6d63b728145108cde9f77ad5e6e5d8fffc44031d747b51f0cb36e2d75e266911';
+const PATCH_PARTS = [
+    'outbreak-patches.b64.001',
+    'outbreak-patches.b64.002',
+    'outbreak-patches.b64.003',
+];
 
 async function read(relative) {
-  return fs.readFile(path.join(root, relative), 'utf8');
+    return fs.readFile(path.join(root, relative), 'utf8');
 }
 
 async function write(relative, content) {
-  const file = path.join(root, relative);
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(file, content, 'utf8');
+    const file = path.join(root, relative);
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, content, 'utf8');
 }
 
 async function replace(relative, transform) {
-  const original = await read(relative);
-  const updated = transform(original);
-  if (updated === original) console.warn(`[patch] ${relative} was unchanged`);
-  await write(relative, updated);
+    const original = await read(relative);
+    const updated = transform(original);
+    if (updated === original) console.warn(`[patch] ${relative} was unchanged`);
+    await write(relative, updated);
 }
 
-await replace('package.json', text => {
-  const pkg = JSON.parse(text);
-  pkg.name = 'shring-shooter';
-  pkg.version = VERSION;
-  pkg.description = 'Shring-hosted build of the MIT-licensed TOSIOS browser shooter.';
-  return `${JSON.stringify(pkg, null, 4)}\n`;
-});
+async function applyOutbreakArchive() {
+    const chunks = await Promise.all(
+        PATCH_PARTS.map(part => fs.readFile(path.join(builderDir, part), 'utf8')),
+    );
+    const archive = Buffer.from(chunks.join('').replace(/\s+/g, ''), 'base64');
+    const digest = createHash('sha256').update(archive).digest('hex');
+    if (digest !== PATCH_SHA256) {
+        throw new Error(`Outbreak patch checksum mismatch: expected ${PATCH_SHA256}, got ${digest}`);
+    }
 
-await replace('packages/common/src/constants.ts', text => text
-  .replace("export const APP_TITLE = 'TOSIOS';", "export const APP_TITLE = 'Shring Shooter';")
-  .replace('export const WS_PORT = 3001;', 'export const WS_PORT = 31025;'));
+    const archivePath = path.join(root, '.shring-outbreak-patches.tar.gz');
+    await fs.writeFile(archivePath, archive);
+    try {
+        execFileSync('tar', ['-xzf', archivePath, '-C', root], { stdio: 'inherit' });
+    } finally {
+        await fs.rm(archivePath, { force: true });
+    }
+    console.log(`[patch] Applied verified Outbreak overlay ${digest}`);
+}
+
+await applyOutbreakArchive();
+
+await replace('package.json', text => {
+    const pkg = JSON.parse(text);
+    pkg.name = 'shring-shooter';
+    pkg.version = VERSION;
+    pkg.description = 'Shring Shooter with PvP and cooperative Outbreak wave survival.';
+    return `${JSON.stringify(pkg, null, 4)}\n`;
+});
 
 await write('packages/client/src/screens/Home/components/Header.tsx', `import { Constants } from '@tosios/common';
 import React from 'react';
@@ -47,7 +75,7 @@ export function Header(): React.ReactElement {
         <>
             <Helmet>
                 <title>{Constants.APP_TITLE + ' - Home'}</title>
-                <meta name="description" content="A fast browser multiplayer shooter hosted by the Shring Network." />
+                <meta name="description" content="Cooperative Outbreak waves and fast browser multiplayer hosted by the Shring Network." />
             </Helmet>
             <View flex center column style={{ width: 700, maxWidth: '100%' }}>
                 <Text style={{ color: '#ffffff', fontSize: 40, fontWeight: 'bold', textAlign: 'center' }}>
@@ -55,7 +83,7 @@ export function Header(): React.ReactElement {
                 </Text>
                 <Space size="xs" />
                 <Text style={{ color: '#ddd7e8', fontSize: 13, textAlign: 'center' }}>
-                    Create a room, share it with friends, and play directly in your browser.
+                    Survive Outbreak together, or create a classic PvP room with friends.
                 </Text>
                 <Space size="xxs" />
             </View>
@@ -86,19 +114,19 @@ export function Footer(): React.ReactElement {
 `);
 
 await replace('packages/client/public/index.html', text => text
-  .replaceAll('<title>TOSIOS</title>', '<title>Shring Shooter</title>')
-  .replaceAll('The Open-Source IO Shooter is an open-source multiplayer game in the browser.', 'A fast browser multiplayer shooter hosted by the Shring Network.')
-  .replaceAll('https://tosios.online/', 'https://shootup.shring.net/')
-  .replaceAll('https://tosios.online/banner.jpg', 'https://shootup.shring.net/banner.jpg')
-  .replaceAll('content="TOSIOS"', 'content="Shring Shooter"'));
+    .replaceAll('<title>TOSIOS</title>', '<title>Shring Shooter</title>')
+    .replaceAll('The Open-Source IO Shooter is an open-source multiplayer game in the browser.', 'Cooperative Outbreak waves and fast browser multiplayer hosted by the Shring Network.')
+    .replaceAll('https://tosios.online/', 'https://shootup.shring.net/')
+    .replaceAll('https://tosios.online/banner.jpg', 'https://shootup.shring.net/banner.jpg')
+    .replaceAll('content="TOSIOS"', 'content="Shring Shooter"'));
 
 await replace('packages/client/public/manifest.json', text => {
-  const manifest = JSON.parse(text);
-  manifest.short_name = 'Shring Shooter';
-  manifest.name = 'Shring Shooter';
-  manifest.description = 'Browser multiplayer shooter hosted by the Shring Network.';
-  manifest.start_url = '/';
-  return `${JSON.stringify(manifest, null, 4)}\n`;
+    const manifest = JSON.parse(text);
+    manifest.short_name = 'Shring Shooter';
+    manifest.name = 'Shring Shooter';
+    manifest.description = 'Cooperative Outbreak waves and browser multiplayer.';
+    manifest.start_url = '/';
+    return `${JSON.stringify(manifest, null, 4)}\n`;
 });
 
 await write('packages/server/src/index.ts', `import { Constants } from '@tosios/common';
@@ -133,6 +161,7 @@ app.get('/health', (_req, res) => {
         version: VERSION,
         upstream: 'TOSIOS',
         guestPlay: true,
+        outbreak: true,
         uptimeSeconds: Math.floor(process.uptime()),
     });
 });
@@ -146,6 +175,14 @@ app.get('/api/status', (_req, res) => {
         maps: Constants.MAPS_NAMES,
         modes: Constants.GAME_MODES,
         maxPlayersPerRoom: Constants.ROOM_PLAYERS_MAX,
+        features: [
+            'outbreak-waves',
+            'boss-waves',
+            'revives',
+            'drops',
+            'private-rooms',
+            'hit-markers',
+        ],
     });
 });
 
@@ -156,9 +193,9 @@ server.onShutdown(() => console.log('[Shring Shooter] Shutting down'));
 
 server.listen(PORT, HOST);
 console.log('[Shring Shooter] v' + VERSION + ' listening on http://' + HOST + ':' + PORT);
-console.log('[Shring Shooter] Guest rooms enabled; no account required');
+console.log('[Shring Shooter] Outbreak co-op, private rooms, and classic PvP enabled');
 `);
 
-await write('SHRING-MODIFICATIONS.md', `# Shring Shooter modifications\n\nThis project is a modified deployment of TOSIOS.\n\n- Upstream: https://github.com/halftheopposite/TOSIOS\n- Pinned upstream commit: ${UPSTREAM}\n- Upstream license: MIT\n- Shring release: ${VERSION}\n- Public URL: https://shootup.shring.net\n\nChanges include Shring branding, same-origin secure WebSocket deployment, Pterodactyl port handling, health/status endpoints, removal of the public Colyseus monitor, and production packaging. Gameplay remains TOSIOS deathmatch/team-deathmatch in this release.\n`);
+await write('SHRING-MODIFICATIONS.md', `# Shring Shooter modifications\n\nThis project is a modified deployment of TOSIOS.\n\n- Upstream: https://github.com/halftheopposite/TOSIOS\n- Pinned upstream commit: ${UPSTREAM}\n- Upstream license: MIT\n- Shring release: ${VERSION}\n- Public URL: https://shootup.shring.net\n\nVersion 3.1.0 adds a server-authoritative Outbreak mode with solo/co-op waves, enemy classes, boss waves, scoring, drops, downing, teammate revives, private rooms, hit markers, and an expanded HUD. Existing deathmatch and team deathmatch remain available. The build also includes Shring branding, same-origin secure WebSocket deployment, Pterodactyl port handling, health/status endpoints, and production packaging.\n`);
 
 console.log(`[patch] Applied Shring Shooter ${VERSION} patches to ${root}`);
