@@ -23,7 +23,7 @@ permissions:
 
 env:
   UPSTREAM_COMMIT: 85df5067b19a876cac4304232cc1e68ff1b07c7f
-  RELEASE_VERSION: 1.1.3
+  RELEASE_VERSION: 1.1.4
   PUBLIC_URL: https://shootup.shring.net
 
 jobs:
@@ -48,10 +48,10 @@ jobs:
       - name: Upload Actions artifact
         uses: actions/upload-artifact@v4
         with:
-          name: shring-outbreak-pterodactyl-v1.1.3
+          name: shring-outbreak-pterodactyl-v1.1.4
           path: |
-            Shring-Outbreak-Suroi-v1.1.3-PREBUILT-FLAT.zip
-            Shring-Outbreak-Suroi-v1.1.3-PREBUILT-FLAT.zip.sha256
+            Shring-Outbreak-Suroi-v1.1.4-PREBUILT-FLAT.zip
+            Shring-Outbreak-Suroi-v1.1.4-PREBUILT-FLAT.zip.sha256
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
@@ -60,16 +60,19 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.3
-          name: Shring Outbreak v1.1.3
+          tag_name: v1.1.4
+          name: Shring Outbreak v1.1.4
           body: |
             Precompiled flat Pterodactyl deployment for shootup.shring.net.
 
-            Fixes:
-            - resolves the `region is not defined` browser crash
-            - prevents the infinite Connecting spinner
-            - validates and lints the modified menu source before building
-            - keeps the centered, simplified Shring menu from v1.1.2
+            Matchmaking and small-group fixes:
+            - raises capacity from one concurrent match to four
+            - extends the join window for small groups to three minutes
+            - uses a smaller map when only a few players are online
+            - limits each match to 20 players
+            - preserves the v1.1.3 browser initialization fix
+
+            This remains the temporary Suroi battle-royale deployment, not the final zombie-survival conversion.
 
             Extract directly into /home/container and start with:
 
@@ -77,7 +80,7 @@ jobs:
 
             Guest play is enabled and no account is required.
           files: |
-            Shring-Outbreak-Suroi-v1.1.3-PREBUILT-FLAT.zip
-            Shring-Outbreak-Suroi-v1.1.3-PREBUILT-FLAT.zip.sha256
+            Shring-Outbreak-Suroi-v1.1.4-PREBUILT-FLAT.zip
+            Shring-Outbreak-Suroi-v1.1.4-PREBUILT-FLAT.zip.sha256
           fail_on_unmatched_files: true
           make_latest: true
