@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   UPSTREAM_COMMIT: 85df5067b19a876cac4304232cc1e68ff1b07c7f
@@ -45,7 +45,7 @@ jobs:
         shell: bash
         run: bash builder/build.sh
 
-      - name: Upload Pterodactyl artifact
+      - name: Upload Actions artifact
         uses: actions/upload-artifact@v4
         with:
           name: shring-outbreak-pterodactyl-v1.1.1
@@ -55,3 +55,23 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
+
+      - name: Publish public GitHub release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.1.1
+          name: Shring Outbreak v1.1.1
+          body: |
+            Precompiled flat Pterodactyl deployment for shootup.shring.net.
+
+            Extract directly into /home/container and start with:
+
+            bash ./start.sh
+
+            Guest play is enabled and no account is required.
+          files: |
+            Shring-Outbreak-Suroi-v1.1.1-PREBUILT-FLAT.zip
+            Shring-Outbreak-Suroi-v1.1.1-PREBUILT-FLAT.zip.sha256
+          fail_on_unmatched_files: true
+          make_latest: true
