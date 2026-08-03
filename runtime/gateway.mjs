@@ -107,9 +107,10 @@ export function createGateway({ host, port, internalBasePort, maxGames, staticRo
       res.writeHead(200, headers);
       await pipeline(fs.createReadStream(file), res);
     } catch (error) {
+      if (error?.code === "ERR_STREAM_PREMATURE_CLOSE" || error?.code === "ECONNRESET") return;
       console.error("[gateway] HTTP error", error);
       if (!res.headersSent) res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
-      res.end("Internal server error");
+      if (!res.writableEnded) res.end("Internal server error");
     }
   });
 
