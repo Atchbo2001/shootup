@@ -38,7 +38,11 @@ jobs:
           set -euo pipefail
           rm -rf work
           mkdir -p work/source
-          cat zombie3d/source.part*.b64 | base64 --decode > work/source.tar.gz
+          : > work/source.tar.gz
+          for part in zombie3d/source.part*.b64; do
+            base64 --decode "$part" >> work/source.tar.gz
+          done
+          gzip -t work/source.tar.gz
           tar -xzf work/source.tar.gz -C work/source
           test -f work/source/package.json
           test -f work/source/server.js
