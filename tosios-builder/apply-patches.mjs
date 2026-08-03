@@ -46,7 +46,7 @@ export function Header(): React.ReactElement {
     return (
         <>
             <Helmet>
-                <title>{\`${'${Constants.APP_TITLE}'} - Home\`}</title>
+                <title>{Constants.APP_TITLE + ' - Home'}</title>
                 <meta name="description" content="A fast browser multiplayer shooter hosted by the Shring Network." />
             </Helmet>
             <View flex center column style={{ width: 700, maxWidth: '100%' }}>
@@ -155,7 +155,7 @@ app.get('*', (_req, res) => res.sendFile(join(PUBLIC_DIR, 'index.html')));
 server.onShutdown(() => console.log('[Shring Shooter] Shutting down'));
 
 server.listen(PORT, HOST);
-console.log(\`[Shring Shooter] v${VERSION} listening on http://${HOST}:${PORT}\`);
+console.log('[Shring Shooter] v' + VERSION + ' listening on http://' + HOST + ':' + PORT);
 console.log('[Shring Shooter] Guest rooms enabled; no account required');
 `);
 
