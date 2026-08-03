@@ -8,6 +8,14 @@ on:
       - "builder/**"
       - "runtime/**"
       - ".github/workflows/build-pterodactyl.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "builder/**"
+      - "runtime/**"
+      - ".github/workflows/build-pterodactyl.yml"
+      - "BUILD_TRIGGER"
   workflow_dispatch:
 
 permissions:
