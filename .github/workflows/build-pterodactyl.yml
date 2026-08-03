@@ -23,12 +23,12 @@ permissions:
 
 env:
   UPSTREAM_COMMIT: 85df5067b19a876cac4304232cc1e68ff1b07c7f
-  RELEASE_VERSION: 1.1.2
+  RELEASE_VERSION: 1.1.3
   PUBLIC_URL: https://shootup.shring.net
 
 jobs:
   build:
-    name: Build, smoke test, and package
+    name: Build, type-check, smoke test, and package
     runs-on: ubuntu-24.04
     timeout-minutes: 45
 
@@ -48,10 +48,10 @@ jobs:
       - name: Upload Actions artifact
         uses: actions/upload-artifact@v4
         with:
-          name: shring-outbreak-pterodactyl-v1.1.2
+          name: shring-outbreak-pterodactyl-v1.1.3
           path: |
-            Shring-Outbreak-Suroi-v1.1.2-PREBUILT-FLAT.zip
-            Shring-Outbreak-Suroi-v1.1.2-PREBUILT-FLAT.zip.sha256
+            Shring-Outbreak-Suroi-v1.1.3-PREBUILT-FLAT.zip
+            Shring-Outbreak-Suroi-v1.1.3-PREBUILT-FLAT.zip.sha256
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
@@ -60,18 +60,16 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.2
-          name: Shring Outbreak v1.1.2
+          tag_name: v1.1.3
+          name: Shring Outbreak v1.1.3
           body: |
             Precompiled flat Pterodactyl deployment for shootup.shring.net.
 
-            Menu cleanup:
-            - centered main play panel
-            - removed marquee text and featured creator panels
-            - removed Wiki, Donate, Discord, and other Suroi social links
-            - replaced inactive team controls with one clear Play button
-            - corrected the Shring Network region label
-            - suppressed harmless browser-aborted stream warnings
+            Fixes:
+            - resolves the `region is not defined` browser crash
+            - prevents the infinite Connecting spinner
+            - type-checks the browser client before building
+            - keeps the centered, simplified Shring menu from v1.1.2
 
             Extract directly into /home/container and start with:
 
@@ -79,7 +77,7 @@ jobs:
 
             Guest play is enabled and no account is required.
           files: |
-            Shring-Outbreak-Suroi-v1.1.2-PREBUILT-FLAT.zip
-            Shring-Outbreak-Suroi-v1.1.2-PREBUILT-FLAT.zip.sha256
+            Shring-Outbreak-Suroi-v1.1.3-PREBUILT-FLAT.zip
+            Shring-Outbreak-Suroi-v1.1.3-PREBUILT-FLAT.zip.sha256
           fail_on_unmatched_files: true
           make_latest: true
