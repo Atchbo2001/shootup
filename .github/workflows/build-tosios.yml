@@ -1,0 +1,283 @@
+name: Build Shring Shooter TOSIOS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "tosios-builder/**"
+      - ".github/workflows/build-tosios.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "tosios-builder/**"
+      - ".github/workflows/build-tosios.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  UPSTREAM_COMMIT: 98de136e524d25c5877adc9523c9445bc2b4a262
+  RELEASE_VERSION: 3.0.0
+  ZIP_NAME: Shring-Shooter-TOSIOS-v3.0.0-PTERODACTYL-FLAT.zip
+
+jobs:
+  build:
+    name: Build, two-client test, and package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out Shring repository
+        uses: actions/checkout@v4
+
+      - name: Download pinned TOSIOS source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf work package
+          mkdir -p work/source
+          curl --fail --location --retry 5 --retry-delay 3 \
+            --output work/tosios.tar.gz \
+            "https://github.com/halftheopposite/TOSIOS/archive/${UPSTREAM_COMMIT}.tar.gz"
+          tar -xzf work/tosios.tar.gz --strip-components=1 -C work/source
+          test -f work/source/package.json
+          test -f work/source/LICENSE
+          test -f work/source/packages/server/src/index.ts
+          test -f work/source/packages/client/public/index.html
+
+      - name: Apply Shring patches
+        run: node tosios-builder/apply-patches.mjs work/source
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Yarn Classic
+        run: npm install --global yarn@1.22.22
+
+      - name: Install build dependencies
+        working-directory: work/source
+        run: yarn install --frozen-lockfile --non-interactive
+
+      - name: Build production client and server
+        working-directory: work/source
+        env:
+          BUILD_MODE: production
+          NODE_ENV: production
+        run: yarn build
+
+      - name: Validate compiled output and branding
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s work/source/packages/client/public/script.js
+          test -s work/source/packages/server/dist/index.js
+          grep -q "Shring Shooter" work/source/packages/client/public/index.html
+          grep -q "Shring Shooter" work/source/packages/common/src/constants.ts
+          grep -q "shring-shooter" work/source/packages/server/dist/index.js
+          ! grep -q "tosios.online" work/source/packages/client/public/index.html
+
+      - name: Start compiled test server
+        shell: bash
+        working-directory: work/source
+        run: |
+          set -euo pipefail
+          SERVER_HOST=127.0.0.1 \
+          SERVER_PORT=31025 \
+          PORT=31025 \
+          NODE_ENV=production \
+          node packages/server/dist/index.js > server-test.log 2>&1 &
+          echo $! > server-test.pid
+
+      - name: Wait for health endpoint
+        shell: bash
+        working-directory: work/source
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:31025/health > health.json; then
+              cat health.json
+              grep -q '"ok":true' health.json
+              grep -q '"service":"shring-shooter"' health.json
+              grep -q '"version":"3.0.0"' health.json
+              exit 0
+            fi
+            if ! kill -0 "$(cat server-test.pid)" 2>/dev/null; then
+              cat server-test.log
+              exit 1
+            fi
+            sleep 1
+          done
+          cat server-test.log
+          echo "Health endpoint did not become ready" >&2
+          exit 1
+
+      - name: Test two clients in the same room
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp tosios-builder/smoke.cjs work/source/smoke.cjs
+          cd work/source
+          node smoke.cjs
+
+      - name: Validate browser resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent http://127.0.0.1:31025/ | grep -q "Shring Shooter"
+          curl --fail --silent http://127.0.0.1:31025/script.js > /dev/null
+          curl --fail --silent http://127.0.0.1:31025/api/status > work/source/status.json
+          grep -q '"deathmatch"' work/source/status.json
+          grep -q '"team deathmatch"' work/source/status.json
+
+      - name: Stop compiled test server
+        if: always()
+        shell: bash
+        working-directory: work/source
+        run: |
+          if [ -f server-test.pid ]; then
+            kill -TERM "$(cat server-test.pid)" 2>/dev/null || true
+            sleep 1
+            kill -KILL "$(cat server-test.pid)" 2>/dev/null || true
+          fi
+          cat server-test.log 2>/dev/null || true
+
+      - name: Install production-only dependencies
+        shell: bash
+        working-directory: work/source
+        run: |
+          set -euo pipefail
+          rm -rf node_modules packages/client/node_modules packages/common/node_modules packages/server/node_modules
+          NODE_ENV=production yarn install --production --frozen-lockfile --non-interactive
+          test -d node_modules/express
+          test -d node_modules/cors
+          du -sh node_modules packages/client/public packages/server/dist
+
+      - name: Assemble flat Pterodactyl package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p package
+          rsync -a --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'images' \
+            --exclude 'scripts/dev.sh' \
+            --exclude 'server-test.log' \
+            --exclude 'server-test.pid' \
+            --exclude 'health.json' \
+            --exclude 'status.json' \
+            --exclude 'smoke.cjs' \
+            work/source/ package/
+          cp tosios-builder/start.sh package/start.sh
+          cp tosios-builder/README-FIRST.md package/README-FIRST.md
+          chmod +x package/start.sh
+          cat > package/VERSION.json <<EOF
+          {
+            "version": "${RELEASE_VERSION}",
+            "upstream": "halftheopposite/TOSIOS",
+            "upstreamCommit": "${UPSTREAM_COMMIT}",
+            "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "publicUrl": "https://shootup.shring.net",
+            "port": 31025,
+            "guestPlay": true,
+            "gameplay": "TOSIOS deathmatch and team deathmatch"
+          }
+          EOF
+          test -x package/start.sh
+          test -s package/packages/client/public/script.js
+          test -s package/packages/server/dist/index.js
+          test -d package/node_modules/express
+          test -f package/LICENSE
+          du -sh package
+
+      - name: Validate exact packaged runtime
+        shell: bash
+        working-directory: package
+        run: |
+          set -euo pipefail
+          SERVER_HOST=127.0.0.1 \
+          SERVER_PORT=31026 \
+          NODE_ENV=production \
+          bash ./start.sh > package-test.log 2>&1 &
+          PID=$!
+          cleanup() {
+            kill -TERM "$PID" 2>/dev/null || true
+            wait "$PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:31026/health > package-health.json; then
+              grep -q '"ok":true' package-health.json
+              curl --fail --silent http://127.0.0.1:31026/ | grep -q "Shring Shooter"
+              cat package-health.json
+              exit 0
+            fi
+            if ! kill -0 "$PID" 2>/dev/null; then
+              cat package-test.log
+              exit 1
+            fi
+            sleep 1
+          done
+          cat package-test.log
+          exit 1
+
+      - name: Remove smoke-test files
+        shell: bash
+        run: rm -f package/package-test.log package/package-health.json
+
+      - name: Create upload ZIP and checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f "$ZIP_NAME" "$ZIP_NAME.sha256"
+          cd package
+          zip -r -6 "$GITHUB_WORKSPACE/$ZIP_NAME" .
+          cd "$GITHUB_WORKSPACE"
+          sha256sum "$ZIP_NAME" > "$ZIP_NAME.sha256"
+          unzip -t "$ZIP_NAME"
+          stat -c 'ZIP size: %s bytes' "$ZIP_NAME"
+
+      - name: Upload Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shring-shooter-tosios-v3.0.0
+          path: |
+            Shring-Shooter-TOSIOS-v3.0.0-PTERODACTYL-FLAT.zip
+            Shring-Shooter-TOSIOS-v3.0.0-PTERODACTYL-FLAT.zip.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - name: Publish public GitHub release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v3.0.0
+          name: Shring Shooter TOSIOS v3.0.0
+          body: |
+            Verified Shring-hosted build of the MIT-licensed TOSIOS browser multiplayer shooter.
+
+            Included:
+            - browser and mobile clients
+            - authoritative Node.js and Colyseus server
+            - room browser and room creation
+            - deathmatch and team deathmatch
+            - small and gigantic maps
+            - monsters and health potions
+            - guest play with no required account
+            - health and status endpoints
+            - precompiled client/server with production dependencies
+
+            Extract directly into `/home/container` and start with:
+
+            `bash ./start.sh`
+          files: |
+            Shring-Shooter-TOSIOS-v3.0.0-PTERODACTYL-FLAT.zip
+            Shring-Shooter-TOSIOS-v3.0.0-PTERODACTYL-FLAT.zip.sha256
+          fail_on_unmatched_files: true
+          make_latest: true
