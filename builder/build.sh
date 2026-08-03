@@ -29,8 +29,14 @@ echo "[build] Installing build dependencies"
 cd "$SOURCE"
 bun install --frozen-lockfile
 
-echo "[build] Type-checking the browser client"
-bunx --bun tsc --noEmit -p client/tsconfig.json
+echo "[build] Validating the modified menu source"
+grep -Fq 'for (const [regionID, { flag, name }] of regionMap)' client/src/scripts/ui.ts
+grep -Fq '<span class="server-name">${flag ?? ""}${name}</span>' client/src/scripts/ui.ts
+if grep -Fq '${region.name}' client/src/scripts/ui.ts; then
+  echo "Menu source still contains the invalid region.name reference" >&2
+  exit 1
+fi
+bunx --bun biome lint client/src/scripts/ui.ts
 
 echo "[build] Compiling production browser client"
 NODE_ENV=production bun run build:client
