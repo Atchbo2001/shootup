@@ -39,9 +39,9 @@ jobs:
           rm -rf work
           mkdir -p work/source
           cat zombie3d/fixed.part*.b64 > work/source.b64
-          echo "fa3c3d67958097a8637c5e1801d5738c06d4e902aac978cb762c667422bf9b25  work/source.b64" | sha256sum -c -
+          echo "4d19d6aae007808c429bc303161746c5c94ea9ecb63c7a8fb9dc37ce3f144318  work/source.b64" | sha256sum -c -
           base64 --decode work/source.b64 > work/source.tar.gz
-          echo "be1c61d75183135526092681e26c6c852b51f595e8c01c6cbd641a140cd0a6eb  work/source.tar.gz" | sha256sum -c -
+          echo "c23b8e02c80f3e24f1abd1f63978de7274e1f8c252a9894cec239cab404a65eb  work/source.tar.gz" | sha256sum -c -
           gzip -t work/source.tar.gz
           tar -xzf work/source.tar.gz -C work/source
           test -f work/source/package.json
