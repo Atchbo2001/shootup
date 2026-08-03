@@ -1,6 +1,6 @@
-# Shring Shooter v3.0.0 — Pterodactyl package
+# Shring Shooter: Outbreak v3.1.0 — Pterodactyl package
 
-This package is a Shring-branded build of the MIT-licensed TOSIOS browser multiplayer shooter.
+This package is a Shring-modified build of the MIT-licensed TOSIOS browser multiplayer shooter.
 
 ## Deployment target
 
@@ -19,7 +19,7 @@ This package is a Shring-branded build of the MIT-licensed TOSIOS browser multip
 4. Set startup to `bash ./start.sh`.
 5. Start the server.
 
-No install or build command should run on Pterodactyl. The browser client and Node server are already compiled and production dependencies are included.
+Do not run an install or build command on Pterodactyl. The browser client and Node server are already compiled and production dependencies are included.
 
 ## Verify
 
@@ -28,15 +28,28 @@ curl -fsS http://192.168.1.65:31025/health
 curl -fsS https://shootup.shring.net/health
 ```
 
-## Gameplay in this release
+## Outbreak mode
 
-This release intentionally keeps TOSIOS gameplay intact:
+- one-player solo or cooperative rooms
+- server-authoritative escalating waves
+- grunt, runner, tank, and boss enemies
+- boss wave every five rounds
+- no player-versus-player damage in Outbreak
+- points for damage and kills
+- health and temporary rapid-fire drops
+- downed players, 15-second bleed-out, and teammate revives
+- press `E` near a downed teammate to revive; mobile players receive a revive button
+- wave, enemy, boss, score, revive, power-up, and bleed-out HUD information
+- hit markers and Outbreak announcements
+- endless progression until the squad is eliminated
+
+## Rooms and classic modes
 
 - public room browser
-- private room creation by sharing the room link
-- deathmatch and team deathmatch
+- optional private unlisted rooms joined through the shared room URL
+- deathmatch and team deathmatch remain available
 - small and gigantic maps
 - desktop and mobile controls
-- server-authoritative movement, bullets, monsters, health potions, lobby, and match state
+- up to 16 players depending on room settings
 
-It is not presented as a zombie or co-op conversion. Those changes require separate gameplay work after this stable base is deployed and tested.
+This is the first major Outbreak milestone. It does not yet include the later roadmap's full weapon arsenal, attachments, additional maps, persistent accounts, or progression system.
