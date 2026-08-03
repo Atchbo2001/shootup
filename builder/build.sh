@@ -2,7 +2,7 @@
 set -euo pipefail
 
 : "${UPSTREAM_COMMIT:=85df5067b19a876cac4304232cc1e68ff1b07c7f}"
-: "${RELEASE_VERSION:=1.1.2}"
+: "${RELEASE_VERSION:=1.1.3}"
 : "${PUBLIC_URL:=https://shootup.shring.net}"
 
 ROOT="${GITHUB_WORKSPACE:-$(pwd)}"
@@ -28,6 +28,9 @@ node "$ROOT/builder/clean-menu.mjs" "$SOURCE"
 echo "[build] Installing build dependencies"
 cd "$SOURCE"
 bun install --frozen-lockfile
+
+echo "[build] Type-checking the browser client"
+bunx --bun tsc --noEmit -p client/tsconfig.json
 
 echo "[build] Compiling production browser client"
 NODE_ENV=production bun run build:client
