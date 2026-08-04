@@ -1,4 +1,4 @@
-name: Build Shring Shooter Siege Maps
+name: Build Shring Shooter Network Hardening
 
 on:
   push:
@@ -24,12 +24,12 @@ permissions:
 
 env:
   UPSTREAM_COMMIT: 98de136e524d25c5877adc9523c9445bc2b4a262
-  RELEASE_VERSION: 3.5.0
-  ZIP_NAME: Shring-Shooter-Siege-Maps-v3.5.0-PTERODACTYL-FLAT.zip
+  RELEASE_VERSION: 3.5.1
+  ZIP_NAME: Shring-Shooter-Network-Hardening-v3.5.1-PTERODACTYL-FLAT.zip
 
 jobs:
   build:
-    name: Build, validate both Siege maps, run multiplayer regressions, and package
+    name: Build, validate gameplay, reject hostile packets, and package
     runs-on: ubuntu-24.04
     timeout-minutes: 50
     steps:
@@ -42,15 +42,15 @@ jobs:
           node-version: "22"
 
       - name: Build and validate the exact Pterodactyl release
-        run: bash tosios-builder/ci-build.sh
+        run: bash tosios-builder/ci-build-v3.5.1.sh
 
       - name: Upload Actions artifact
         uses: actions/upload-artifact@v4
         with:
-          name: shring-shooter-siege-maps-v3.5.0
+          name: shring-shooter-network-hardening-v3.5.1
           path: |
-            Shring-Shooter-Siege-Maps-v3.5.0-PTERODACTYL-FLAT.zip
-            Shring-Shooter-Siege-Maps-v3.5.0-PTERODACTYL-FLAT.zip.sha256
+            Shring-Shooter-Network-Hardening-v3.5.1-PTERODACTYL-FLAT.zip
+            Shring-Shooter-Network-Hardening-v3.5.1-PTERODACTYL-FLAT.zip.sha256
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
@@ -59,27 +59,25 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.5.0
-          name: Shring Shooter Siege Maps v3.5.0
+          tag_name: v3.5.1
+          name: Shring Shooter Network Hardening v3.5.1
           body: |
-            Verified Siege Maps milestone built from the MIT-licensed TOSIOS foundation.
+            Network-input hardening hotfix for Shring Shooter.
 
-            New arenas:
-            - Outbreak Citadel: courtyard, throne hall, armory breaches, forge holdout, and Royal Guard boss arena
-            - Ashen Catacombs: central ossuary, four crypt wings, looping corridors, and Bone Colossus boss arena
+            Security and stability fixes:
+            - validates move, rotate, shoot, reload, and revive packets before simulation
+            - rejects malformed, missing, non-finite, zero-length, and oversized action values
+            - normalizes valid angles and safely defaults invalid room options
+            - sanitizes player and room labels
+            - rate-limits gameplay actions per client
+            - keeps defense-in-depth validation in the simulation queue
+            - tests hostile packets against the exact packaged Pterodactyl runtime
 
-            New encounter systems:
-            - named zones synchronized to every client
-            - authored team starts and opening armories
-            - map-authored multi-front spawn gates
-            - rewards delivered at the active holdout
-            - boss-compatible routes and two-player runtime tests in both maps
-
-            Also includes Hunter AI, Smooth Movement, the four-weapon Arsenal, Outbreak, private rooms, Deathmatch, and Team Deathmatch.
+            Retains Outbreak Citadel, Ashen Catacombs, named encounters, Hunter AI, Smooth Movement, the four-weapon Arsenal, private rooms, Deathmatch, and Team Deathmatch.
 
             Extract directly into `/home/container` and start with `bash ./start.sh`.
           files: |
-            Shring-Shooter-Siege-Maps-v3.5.0-PTERODACTYL-FLAT.zip
-            Shring-Shooter-Siege-Maps-v3.5.0-PTERODACTYL-FLAT.zip.sha256
+            Shring-Shooter-Network-Hardening-v3.5.1-PTERODACTYL-FLAT.zip
+            Shring-Shooter-Network-Hardening-v3.5.1-PTERODACTYL-FLAT.zip.sha256
           fail_on_unmatched_files: true
           make_latest: true
