@@ -33,6 +33,11 @@ async function leave(room) {
             privateRoom: true,
         });
 
+        const inputErrors = [];
+        room.onMessage('input-error', (payload) => {
+            inputErrors.push(payload);
+        });
+
         const now = Date.now();
         const malformed = [
             ['rotate', {}],
@@ -51,8 +56,14 @@ async function leave(room) {
         ];
 
         for (const [type, payload] of malformed) room.send(type, payload);
-        await sleep(750);
-        const afterMalformed = await health();
+        await sleep(1000);
+        await health();
+
+        assert.ok(
+            inputErrors.length >= 1,
+            'Malformed packets should produce rejection feedback',
+        );
+        const rejectedBeforeValid = inputErrors.length;
 
         const validTs = Date.now() + 1;
         room.send('rotate', { type: 'rotate', ts: validTs, value: { rotation: 0.75 } });
@@ -60,12 +71,18 @@ async function leave(room) {
         await sleep(500);
         const afterValid = await health();
 
-        assert.equal(afterMalformed.uptimeSeconds <= afterValid.uptimeSeconds, true);
+        assert.equal(
+            inputErrors.length,
+            rejectedBeforeValid,
+            'Valid packets must remain accepted after malformed input is rejected',
+        );
+
         console.log(JSON.stringify({
             ok: true,
             version: afterValid.version,
             inputHardening: afterValid.inputHardening,
-            malformedPacketsRejected: malformed.length,
+            malformedPacketsSent: malformed.length,
+            rejectionMessagesObserved: rejectedBeforeValid,
             validPacketsStillAccepted: true,
             serverStayedAlive: true,
         }));
