@@ -1,4 +1,4 @@
-# Shring Shooter: Siege Maps v3.5.0 — Pterodactyl package
+# Shring Shooter: Network Hardening v3.5.1 — Pterodactyl package
 
 This package is a Shring-modified build of the MIT-licensed TOSIOS browser multiplayer shooter.
 
@@ -21,34 +21,20 @@ This package is a Shring-modified build of the MIT-licensed TOSIOS browser multi
 
 Do not run an install or build command on Pterodactyl. The browser client and Node server are already compiled and production dependencies are included.
 
-## Siege Maps milestone
+## v3.5.1 hotfix
 
-### Outbreak Citadel
+- validates every move, rotate, shoot, reload, and revive packet before simulation
+- rejects missing, malformed, non-finite, zero-length, and oversized action values
+- normalizes valid angles before applying them
+- limits each client to a safe gameplay action rate
+- sanitizes player and room labels
+- safely defaults invalid room sizes to four players
+- adds defense-in-depth checks inside the simulation queue
+- includes a hostile-packet regression test against the exact packaged runtime
 
-- central Citadel Courtyard cooperative start
-- Throne Hall Siege and two Armory Breach encounters
-- Southern Forge Holdout
-- looping flank corridors and multiple attack fronts
-- Royal Guard boss arena
+## Included gameplay
 
-### Ashen Catacombs
-
-- central Ossuary cooperative start
-- northwest, northeast, southwest, and southeast crypt encounters
-- looping corridors and alternate retreat routes
-- fixed opening armory
-- Bone Colossus boss arena
-
-### Encounter systems
-
-- the active encounter name is synchronized to every client and displayed in the Outbreak HUD
-- team starts and opening armories are authored per map
-- waves use map-authored spawn gates instead of arbitrary positions
-- rewards are delivered to the active holdout reward point
-- map topology, boss clearance, spawn coverage, and two-player pursuit are release gates
-
-## Existing gameplay
-
+- Outbreak Citadel and Ashen Catacombs with authored starts, armories, holdouts, spawn gates, named zones, and boss arenas
 - global Hunter AI awareness, nearest-player targeting, A* routing, dynamic replanning, and stuck recovery
 - fixed 60 Hz movement simulation and 30 Hz authoritative snapshots
 - sidearm, SMG, rifle, and scattergun
@@ -65,6 +51,6 @@ curl -fsS http://192.168.1.65:31025/health
 curl -fsS https://shootup.shring.net/health
 ```
 
-The health response for this package reports version `3.5.0`, `siegeMaps: true`, `namedEncounterZones: true`, `hunterAI: true`, and `smoothMovement: true`.
+The health response reports version `3.5.1`, `inputHardening: true`, `siegeMaps: true`, `namedEncounterZones: true`, `hunterAI: true`, and `smoothMovement: true`.
 
-The next roadmap milestone expands enemy and boss variety with stronger combat roles and map-specific encounter behavior.
+The next gameplay milestone expands enemy and boss variety with stronger combat roles and map-specific encounter behavior.
