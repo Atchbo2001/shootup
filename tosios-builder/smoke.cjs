@@ -19,7 +19,7 @@ function waitFor(predicate, timeoutMs = 20000, message = 'Timed out waiting for 
                 clearInterval(timer);
                 reject(error);
             }
-        }, 100);
+        }, 50);
     });
 }
 
@@ -39,6 +39,111 @@ function bulletsFor(room, playerId) {
     return Array.from(room.state?.bullets || []).filter((bullet) => bullet.playerId === playerId);
 }
 
+function distance(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+async function verifyMovementAcknowledgements(roomA, roomB) {
+    const local = () => player(roomA, roomA.sessionId);
+    const remote = () => player(roomB, roomA.sessionId);
+    const directions = [
+        { x: 1, y: 0 },
+        { x: -1, y: 0 },
+        { x: 0, y: 1 },
+        { x: 0, y: -1 },
+    ];
+
+    let timestamp = Date.now();
+    let selectedDirection = null;
+    let movedFrom = null;
+    let movedTo = null;
+
+    for (const direction of directions) {
+        const before = { x: local().x, y: local().y };
+        timestamp += 1;
+        roomA.send('move', { type: 'move', ts: timestamp, value: direction });
+        await waitFor(
+            () => local()?.ack === timestamp,
+            5000,
+            `Movement acknowledgement ${timestamp} did not synchronize`,
+        );
+        const after = { x: local().x, y: local().y };
+        if (distance(before, after) > 0.25) {
+            selectedDirection = direction;
+            movedFrom = before;
+            movedTo = after;
+            break;
+        }
+    }
+
+    assert.ok(selectedDirection, 'Player could not move in any cardinal direction');
+    assert.ok(distance(movedFrom, movedTo) > 0.25, 'Authoritative movement did not change position');
+
+    await waitFor(
+        () => {
+            const other = remote();
+            return other && Math.hypot(other.x - movedTo.x, other.y - movedTo.y) < 0.01;
+        },
+        5000,
+        'Remote client did not receive the authoritative movement snapshot',
+    );
+
+    const movementAck = timestamp;
+    const rotationTimestamp = movementAck + 1000;
+    const targetRotation = 1.234;
+    roomA.send('rotate', {
+        type: 'rotate',
+        ts: rotationTimestamp,
+        value: { rotation: targetRotation },
+    });
+    await waitFor(
+        () => Math.abs(local()?.rotation - targetRotation) < 0.001,
+        5000,
+        'Authoritative rotation did not synchronize',
+    );
+    assert.equal(
+        local().ack,
+        movementAck,
+        'Rotation timestamp overwrote the movement-only reconciliation acknowledgement',
+    );
+
+    const burstStart = { x: local().x, y: local().y };
+    for (let index = 0; index < 24; index += 1) {
+        timestamp += 1;
+        roomA.send('move', {
+            type: 'move',
+            ts: timestamp,
+            value: selectedDirection,
+        });
+    }
+    const finalAck = timestamp;
+    await waitFor(
+        () => local()?.ack === finalAck,
+        5000,
+        'Server did not process the complete monotonic movement burst',
+    );
+    await waitFor(
+        () => {
+            const mine = local();
+            const other = remote();
+            return mine && other && Math.hypot(mine.x - other.x, mine.y - other.y) < 0.01;
+        },
+        5000,
+        'Clients did not converge on the same post-burst position',
+    );
+
+    return {
+        movementAck,
+        rotationTimestamp,
+        finalAck,
+        selectedDirection,
+        firstStepDistance: distance(movedFrom, movedTo),
+        burstDistance: distance(burstStart, local()),
+        clientsConverged: true,
+        rotationPreservedMovementAck: true,
+    };
+}
+
 (async () => {
     const clientA = new Client(url);
     const clientB = new Client(url);
@@ -50,7 +155,7 @@ function bulletsFor(room, playerId) {
     try {
         outbreakA = await clientA.create('game', {
             playerName: 'CI-Alpha',
-            roomName: 'CI Private Arsenal',
+            roomName: 'CI Private Smooth Movement',
             roomMap: 'small',
             roomMaxPlayers: 4,
             mode: 'outbreak',
@@ -91,6 +196,8 @@ function bulletsFor(room, playerId) {
             assert.equal(typeof item.revives, 'number');
             assert.equal(typeof item.downed, 'boolean');
         }
+
+        const movement = await verifyMovementAcknowledgements(outbreakA, outbreakB);
 
         const armory = propTypes(outbreakA);
         for (const expected of ['weapon-smg', 'weapon-rifle', 'weapon-scattergun', 'ammo-crate']) {
@@ -158,6 +265,7 @@ function bulletsFor(room, playerId) {
 
         console.log(JSON.stringify({
             ok: true,
+            smoothMovement: movement,
             arsenal: {
                 weapons: ['sidearm', 'smg', 'rifle', 'scattergun'],
                 startingArmory: true,
