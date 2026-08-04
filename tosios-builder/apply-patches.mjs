@@ -9,7 +9,7 @@ if (!sourceArg) throw new Error('Usage: node apply-patches.mjs <tosios-source>')
 
 const root = path.resolve(sourceArg);
 const builderDir = path.dirname(fileURLToPath(import.meta.url));
-const VERSION = '3.2.0';
+const VERSION = '3.3.0';
 const UPSTREAM = '98de136e524d25c5877adc9523c9445bc2b4a262';
 
 const PATCHES = [
@@ -40,6 +40,16 @@ const PATCHES = [
             'arsenal-patches.b64.007',
         ],
     },
+    {
+        name: 'Smooth Movement milestone',
+        sha256: 'f42d57d644a165900cd114a7af1b217329c2a82661b0815145133d29e10feb00',
+        parts: [
+            'smooth-movement-patches.b64.001',
+            'smooth-movement-patches.b64.002',
+            'smooth-movement-patches.b64.003',
+            'smooth-movement-patches.b64.004',
+        ],
+    },
 ];
 
 async function read(relative) {
@@ -49,6 +59,11 @@ async function read(relative) {
 async function assertContains(relative, marker) {
     const text = await read(relative);
     if (!text.includes(marker)) throw new Error(`${relative} is missing required marker: ${marker}`);
+}
+
+async function assertNotContains(relative, marker) {
+    const text = await read(relative);
+    if (text.includes(marker)) throw new Error(`${relative} still contains forbidden marker: ${marker}`);
 }
 
 async function applyArchive(definition, index) {
@@ -83,10 +98,16 @@ if (pkg.name !== 'shring-shooter' || pkg.version !== VERSION) {
 }
 
 await assertContains('packages/common/src/constants.ts', 'export const WEAPONS');
-await assertContains('packages/common/src/constants.ts', 'scattergun');
+await assertContains('packages/common/src/constants.ts', 'SIMULATION_STEP_MS');
+await assertContains('packages/common/src/constants.ts', 'NETWORK_PATCH_RATE_MS');
 await assertContains('packages/server/src/states/GameState.ts', 'startPlayerReload');
-await assertContains('packages/server/src/states/GameState.ts', 'spawnStartingArmory');
+await assertContains('packages/server/src/states/GameState.ts', 'Movement acknowledgement is intentionally not changed by rotation');
+await assertContains('packages/client/src/game/Game.ts', 'frame-rate independent');
+await assertContains('packages/client/src/game/Game.ts', 'movementAccumulator');
+await assertContains('packages/client/src/game/Game.ts', 'soft-local-correction');
 await assertContains('packages/client/src/screens/Game/components/HUD/WeaponStatus.tsx', 'RELOADING');
-await assertContains('packages/server/src/index.ts', "const VERSION = '3.2.0'");
+await assertContains('packages/server/src/index.ts', "const VERSION = '3.3.0'");
+await assertContains('packages/server/src/index.ts', 'smoothMovement: true');
+await assertNotContains('packages/server/src/states/GameState.ts', 'player.ack = Math.max');
 
-console.log(`[patch] Applied Shring Shooter Arsenal ${VERSION} to pinned TOSIOS ${UPSTREAM}`);
+console.log(`[patch] Applied Shring Shooter Smooth Movement ${VERSION} to pinned TOSIOS ${UPSTREAM}`);
