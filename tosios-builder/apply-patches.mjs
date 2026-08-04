@@ -9,7 +9,7 @@ if (!sourceArg) throw new Error('Usage: node apply-patches.mjs <tosios-source>')
 
 const root = path.resolve(sourceArg);
 const builderDir = path.dirname(fileURLToPath(import.meta.url));
-const VERSION = '3.4.0';
+const VERSION = '3.5.0';
 const UPSTREAM = '98de136e524d25c5877adc9523c9445bc2b4a262';
 
 const PATCHES = [
@@ -68,6 +68,20 @@ const PATCHES = [
             'hunter-ai-patches.b64.chunk005',
         ],
     },
+    {
+        name: 'Siege Maps milestone',
+        sha256: 'bb17a665254219b9445ccd0df0271afc36ddf534e9edc244fe98aa3ed621d89b',
+        parts: [
+            'siege-maps-patches.b64.chunk000',
+            'siege-maps-patches.b64.chunk001',
+            'siege-maps-patches.b64.chunk002',
+            'siege-maps-patches.b64.chunk003',
+            'siege-maps-patches.b64.chunk004',
+            'siege-maps-patches.b64.chunk005',
+            'siege-maps-patches.b64.chunk006',
+            'siege-maps-patches.b64.chunk007',
+        ],
+    },
 ];
 
 async function read(relative) {
@@ -116,22 +130,29 @@ if (pkg.name !== 'shring-shooter' || pkg.version !== VERSION) {
 }
 
 await assertContains('packages/common/src/constants.ts', 'export const WEAPONS');
+await assertContains('packages/common/src/constants.ts', "'citadel'");
+await assertContains('packages/common/src/constants.ts', "'catacombs'");
 await assertContains('packages/common/src/constants.ts', 'SIMULATION_STEP_MS');
 await assertContains('packages/common/src/constants.ts', 'OUTBREAK_MONSTER_SIGHT = 100000');
-await assertContains('packages/common/src/constants.ts', 'MONSTER_PATH_REFRESH_MS');
+await assertContains('packages/common/src/maps/encounters.json', 'Royal Guard Boss Arena');
+await assertContains('packages/common/src/maps/encounters.json', 'Bone Colossus Arena');
+await assertContains('packages/common/src/maps/index.ts', "import citadel from './citadel.json'");
+await assertContains('packages/common/src/maps/index.ts', "import catacombs from './catacombs.json'");
 await assertContains('packages/server/src/navigation/GridNavigation.ts', 'class GridNavigation');
-await assertContains('packages/server/src/navigation/GridNavigation.ts', 'findPath(');
 await assertContains('packages/server/src/entities/Monster.ts', 'persistentPursuit');
-await assertContains('packages/server/src/entities/Monster.ts', 'rebuildPath');
-await assertContains('packages/server/src/entities/Monster.ts', 'MONSTER_STUCK_REPATH_MS');
-await assertContains('packages/server/src/states/GameState.ts', 'getOutbreakSpawnPosition');
-await assertContains('packages/server/src/states/GameState.ts', 'prepareOutbreakSpawnLanes');
+await assertContains('packages/server/src/entities/Game.ts', 'encounterName');
+await assertContains('packages/server/src/states/GameState.ts', 'selectOutbreakEncounter');
+await assertContains('packages/server/src/states/GameState.ts', 'outbreakSpawnPoints');
+await assertContains('packages/server/src/states/GameState.ts', 'activeEncounter.rewardPoint');
 await assertContains('packages/server/src/states/GameState.ts', 'monster.update(this.players, this.navigation)');
 await assertContains('packages/server/src/states/GameState.ts', 'Movement acknowledgement is intentionally not changed by rotation');
+await assertContains('packages/client/src/game/Game.ts', 'encounterName');
+await assertContains('packages/client/src/components/game/OutbreakStatus.tsx', 'encounter');
 await assertContains('packages/client/src/game/Game.ts', 'movementAccumulator');
-await assertContains('packages/server/src/index.ts', "const VERSION = '3.4.0'");
+await assertContains('packages/server/src/index.ts', "const VERSION = '3.5.0'");
 await assertContains('packages/server/src/index.ts', 'hunterAI: true');
-await assertContains('packages/server/src/index.ts', 'grid-a-star-pathfinding');
+await assertContains('packages/server/src/index.ts', 'siegeMaps: true');
+await assertContains('packages/server/src/index.ts', 'namedEncounterZones: true');
 await assertNotContains('packages/server/src/states/GameState.ts', 'player.ack = Math.max');
 
-console.log(`[patch] Applied Shring Shooter Hunter AI ${VERSION} to pinned TOSIOS ${UPSTREAM}`);
+console.log(`[patch] Applied Shring Shooter Siege Maps ${VERSION} to pinned TOSIOS ${UPSTREAM}`);
