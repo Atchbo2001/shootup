@@ -1,4 +1,4 @@
-# Shring Shooter: Smooth Movement v3.3.0 — Pterodactyl package
+# Shring Shooter: Hunter AI v3.4.0 — Pterodactyl package
 
 This package is a Shring-modified build of the MIT-licensed TOSIOS browser multiplayer shooter.
 
@@ -21,20 +21,20 @@ This package is a Shring-modified build of the MIT-licensed TOSIOS browser multi
 
 Do not run an install or build command on Pterodactyl. The browser client and Node server are already compiled and production dependencies are included.
 
-## Smooth Movement milestone
+## Hunter AI milestone
 
-- fixed 60 Hz movement simulation on the browser client and authoritative server
-- consistent movement speed at 20, 30, 60, 90, 120, 144, and 240 FPS
-- 30 Hz authoritative server snapshots
-- frame-rate-independent interpolation for remote players and enemies
-- movement-only acknowledgement sequencing; rotation updates no longer overwrite movement acknowledgements
-- bounded input replay and cleanup of acknowledged or stale commands
-- small network corrections blended smoothly instead of immediately snapping the local player
-- hard correction preserved for respawns, teleports, and large position errors
-- large remote teleports still snap immediately instead of sliding across the map
+- Outbreak enemies acquire players across the entire map instead of waiting for close-range sight
+- enemies select the nearest living player and change targets only when another player is meaningfully closer
+- tile-grid A* pathfinding routes enemies around walls on the gigantic map
+- routes are recalculated as players move and when a path becomes stale
+- enemies switch back to direct pursuit when line of sight opens
+- stalled enemies force a new path and use recovery steering instead of remaining pinned to a wall
+- wave enemies spawn through reachable lanes around the player group rather than arbitrary unreachable locations
+- gigantic-map multiplayer pursuit is part of the release gate
 
-## Existing Arsenal and gameplay
+## Existing gameplay
 
+- fixed 60 Hz movement simulation and 30 Hz authoritative snapshots
 - sidearm, SMG, rifle, and scattergun
 - server-authoritative ammunition, damage, range, firing rate, and reload timing
 - weapon pickups, ammunition crates, armories, enemy drops, and wave rewards
@@ -53,6 +53,6 @@ curl -fsS http://192.168.1.65:31025/health
 curl -fsS https://shootup.shring.net/health
 ```
 
-The health response for this package reports version `3.3.0`, `smoothMovement: true`, `simulationHz: 60`, and `snapshotHz: 30`.
+The health response for this package reports version `3.4.0`, `hunterAI: true`, `globalOutbreakAggro: true`, `gridPathfinding: true`, and `encounterDirector: true`.
 
-Purpose-built maps and encounter layouts are the next roadmap milestone.
+The next roadmap milestone is purpose-built Outbreak maps and encounter layouts.
