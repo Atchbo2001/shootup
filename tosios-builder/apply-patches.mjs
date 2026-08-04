@@ -52,8 +52,15 @@ const PATCHES = [
     },
     {
         name: 'Hunter AI milestone',
-        sha256: '972be10a2f5822a67bbd6c749b1cb5dd5890651a6c98cdc4edc0a49ebc2e93d6',
-        parts: ['hunter-ai-patches.b64.001'],
+        sha256: 'd25c8ffb7c6379e97d638ed38d34f7a4959829f005a0929507b309440509f9f7',
+        parts: [
+            'hunter-ai-patches.b64.chunk000',
+            'hunter-ai-patches.b64.chunk001',
+            'hunter-ai-patches.b64.chunk002',
+            'hunter-ai-patches.b64.chunk003',
+            'hunter-ai-patches.b64.chunk004',
+            'hunter-ai-patches.b64.chunk005',
+        ],
     },
 ];
 
