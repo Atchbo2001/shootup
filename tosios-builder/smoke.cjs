@@ -27,6 +27,18 @@ async function leave(room) {
     try { await room?.leave(); } catch {}
 }
 
+function player(room, sessionId) {
+    return room.state?.players?.get(sessionId);
+}
+
+function propTypes(room) {
+    return Array.from(room.state?.props || []).filter((prop) => prop.active).map((prop) => prop.type);
+}
+
+function bulletsFor(room, playerId) {
+    return Array.from(room.state?.bullets || []).filter((bullet) => bullet.playerId === playerId);
+}
+
 (async () => {
     const clientA = new Client(url);
     const clientB = new Client(url);
@@ -38,7 +50,7 @@ async function leave(room) {
     try {
         outbreakA = await clientA.create('game', {
             playerName: 'CI-Alpha',
-            roomName: 'CI Private Outbreak',
+            roomName: 'CI Private Arsenal',
             roomMap: 'small',
             roomMaxPlayers: 4,
             mode: 'outbreak',
@@ -58,7 +70,7 @@ async function leave(room) {
                 outbreakA.state?.game?.state === 'game' &&
                 outbreakA.state?.game?.wave >= 1 &&
                 outbreakA.state?.monsters?.size > 0,
-            20000,
+            25000,
             'Outbreak wave did not start',
         );
 
@@ -68,17 +80,51 @@ async function leave(room) {
         assert.equal(typeof outbreakA.state.game.bossWave, 'boolean');
         assert.ok(outbreakA.state.game.enemiesRemaining > 0);
 
-        const outbreakNames = [...outbreakA.state.players.values()].map(player => player.name).sort();
+        const outbreakNames = [...outbreakA.state.players.values()].map((item) => item.name).sort();
         assert.deepEqual(outbreakNames, ['CI-Alpha', 'CI-Bravo']);
-        for (const player of outbreakA.state.players.values()) {
-            assert.equal(typeof player.score, 'number');
-            assert.equal(typeof player.revives, 'number');
-            assert.equal(typeof player.downed, 'boolean');
+        for (const item of outbreakA.state.players.values()) {
+            assert.equal(item.weapon, 'sidearm');
+            assert.equal(item.ammo, 12);
+            assert.equal(item.reserveAmmo, 72);
+            assert.equal(item.reloadingEndsAt, 0);
+            assert.equal(typeof item.score, 'number');
+            assert.equal(typeof item.revives, 'number');
+            assert.equal(typeof item.downed, 'boolean');
         }
+
+        const armory = propTypes(outbreakA);
+        for (const expected of ['weapon-smg', 'weapon-rifle', 'weapon-scattergun', 'ammo-crate']) {
+            assert.ok(armory.includes(expected), `Starting armory is missing ${expected}`);
+        }
+
+        const alpha = () => player(outbreakA, outbreakA.sessionId);
+        outbreakA.send('shoot', { type: 'shoot', ts: Date.now(), value: { angle: 0 } });
+        await waitFor(
+            () => alpha()?.ammo === 11 && bulletsFor(outbreakA, outbreakA.sessionId).length > 0,
+            5000,
+            'Authoritative sidearm shot did not consume ammunition or synchronize a bullet',
+        );
+        const sidearmBullet = bulletsFor(outbreakA, outbreakA.sessionId).sort((a, b) => b.shotAt - a.shotAt)[0];
+        assert.equal(sidearmBullet.weapon, 'sidearm');
+        assert.equal(sidearmBullet.damage, 2);
+        assert.equal(sidearmBullet.speed, 5.2);
+        assert.equal(sidearmBullet.maxDistance, 640);
+
+        outbreakA.send('reload', { type: 'reload', ts: Date.now(), value: {} });
+        await waitFor(
+            () => alpha()?.reloadingEndsAt > Date.now(),
+            3000,
+            'Server did not start the manual reload',
+        );
+        await waitFor(
+            () => alpha()?.reloadingEndsAt === 0 && alpha()?.ammo === 12 && alpha()?.reserveAmmo === 71,
+            5000,
+            'Server did not complete the timed reload with correct magazine accounting',
+        );
 
         const listedWhilePrivate = await clientA.getAvailableRooms('game');
         assert.ok(
-            !listedWhilePrivate.some(room => room.roomId === outbreakA.id),
+            !listedWhilePrivate.some((room) => room.roomId === outbreakA.id),
             'Private Outbreak room must not appear in the public room browser',
         );
 
@@ -106,12 +152,18 @@ async function leave(room) {
 
         const listedPublic = await clientA.getAvailableRooms('game');
         assert.ok(
-            listedPublic.some(room => room.roomId === pvpA.id),
+            listedPublic.some((room) => room.roomId === pvpA.id),
             'Public deathmatch room must remain visible',
         );
 
         console.log(JSON.stringify({
             ok: true,
+            arsenal: {
+                weapons: ['sidearm', 'smg', 'rifle', 'scattergun'],
+                startingArmory: true,
+                authoritativeShot: true,
+                timedReload: true,
+            },
             outbreak: {
                 clients: 2,
                 wave: 1,
@@ -129,7 +181,7 @@ async function leave(room) {
         await leave(outbreakB);
         await leave(outbreakA);
     }
-})().catch(error => {
+})().catch((error) => {
     console.error(error);
     process.exit(1);
 });
