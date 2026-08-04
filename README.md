@@ -19,28 +19,29 @@ Pterodactyl does not compile the game. GitHub Actions downloads the pinned upstr
 - Upstream: `halftheopposite/TOSIOS`
 - Pinned upstream commit: `98de136e524d25c5877adc9523c9445bc2b4a262`
 - Upstream license: MIT
-- Current Shring release candidate: `3.3.0`
+- Current Shring release candidate: `3.4.0`
 
 The generated deployment ZIP includes the complete modified source and upstream license.
 
 ## Current scope
 
-Version 3.3.0 includes all previous Arsenal and Outbreak gameplay plus the Smooth Movement milestone:
+Version 3.4.0 includes all previous Smooth Movement, Arsenal, and Outbreak gameplay plus the Hunter AI milestone:
 
-- fixed 60 Hz local and server movement simulation independent of monitor refresh rate
-- 30 Hz authoritative server snapshots
-- frame-rate-independent interpolation for remote players and enemies
-- movement-only acknowledgement sequencing so aim updates cannot corrupt reconciliation
-- bounded input replay and stale-command cleanup
-- soft blending for normal network corrections
-- hard position snaps reserved for respawns, teleports, and large errors
+- global Outbreak awareness across small and gigantic maps
+- nearest-living-player target selection with stable retargeting
+- tile-grid A* routes around collision walls
+- path replanning as players move or routes become stale
+- direct pursuit when line of sight opens
+- stuck detection, forced rerouting, and recovery steering
+- reachable multi-lane wave spawning around the player group
+- fixed 60 Hz local and server movement simulation
+- 30 Hz authoritative server snapshots and smooth network correction
 - solo and cooperative Outbreak wave survival
 - boss rounds, drops, downing, bleed-out, and teammate revives
 - private unlisted rooms with shareable room URLs
 - deathmatch and team deathmatch
 - sidearm, SMG, rifle, and scattergun
 - server-authoritative ammunition, firing, damage, range, and timed reloads
-- weapon pickups, ammunition crates, starting armories, enemy drops, and wave rewards
-- desktop and mobile weapon/ammo/reload HUD
+- weapon pickups, ammunition crates, armories, enemy drops, and wave rewards
 
-Purpose-built maps and encounter layouts are the next roadmap milestone. Persistent accounts, XP, unlocks, attachments, and expanded enemies remain later milestones.
+The next roadmap milestone is purpose-built Outbreak maps and encounter layouts. Attachments, expanded enemies and bosses, and persistent Shring accounts remain later milestones.
