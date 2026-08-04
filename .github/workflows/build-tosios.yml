@@ -1,9 +1,8 @@
-name: Build Shring Shooter Hunter AI
+name: Build Shring Shooter Siege Maps
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - "tosios-builder/**"
       - ".github/workflows/build-tosios.yml"
@@ -11,8 +10,7 @@ on:
       - "ROADMAP.md"
       - "VERSION-NEXT"
   pull_request:
-    branches:
-      - main
+    branches: [main]
     paths:
       - "tosios-builder/**"
       - ".github/workflows/build-tosios.yml"
@@ -26,272 +24,33 @@ permissions:
 
 env:
   UPSTREAM_COMMIT: 98de136e524d25c5877adc9523c9445bc2b4a262
-  RELEASE_VERSION: 3.4.0
-  ZIP_NAME: Shring-Shooter-Hunter-AI-v3.4.0-PTERODACTYL-FLAT.zip
+  RELEASE_VERSION: 3.5.0
+  ZIP_NAME: Shring-Shooter-Siege-Maps-v3.5.0-PTERODACTYL-FLAT.zip
 
 jobs:
   build:
-    name: Build, gigantic-map AI test, regressions, and package
+    name: Build, validate both Siege maps, run multiplayer regressions, and package
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
-
+    timeout-minutes: 50
     steps:
       - name: Check out Shring repository
         uses: actions/checkout@v4
-
-      - name: Download pinned TOSIOS source
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf work package
-          mkdir -p work/source
-          curl --fail --location --retry 5 --retry-delay 3 \
-            --output work/tosios.tar.gz \
-            "https://github.com/halftheopposite/TOSIOS/archive/${UPSTREAM_COMMIT}.tar.gz"
-          tar -xzf work/tosios.tar.gz --strip-components=1 -C work/source
-          test -f work/source/package.json
-          test -f work/source/LICENSE
-          test -f work/source/packages/server/src/index.ts
-          test -f work/source/packages/client/public/index.html
-
-      - name: Apply verified Shring Hunter AI overlay
-        run: node tosios-builder/apply-patches.mjs work/source
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: "22"
 
-      - name: Verify deterministic movement timing
-        run: node tosios-builder/movement-check.cjs work/source
-
-      - name: Install Yarn Classic
-        run: npm install --global yarn@1.22.22
-
-      - name: Install build dependencies
-        working-directory: work/source
-        run: yarn install --frozen-lockfile --non-interactive
-
-      - name: Build production client and server
-        working-directory: work/source
-        env:
-          BUILD_MODE: production
-          NODE_ENV: production
-        run: yarn build
-
-      - name: Validate compiled Hunter AI output
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s work/source/packages/client/public/script.js
-          test -s work/source/packages/server/dist/index.js
-          test -s work/source/packages/server/src/navigation/GridNavigation.ts
-          grep -q "Shring Shooter" work/source/packages/client/public/index.html
-          grep -q "SIMULATION_STEP_MS" work/source/packages/common/src/constants.ts
-          grep -q "OUTBREAK_MONSTER_SIGHT = 100000" work/source/packages/common/src/constants.ts
-          grep -q "MONSTER_PATH_REFRESH_MS" work/source/packages/common/src/constants.ts
-          grep -q "class GridNavigation" work/source/packages/server/src/navigation/GridNavigation.ts
-          grep -q "findPath(" work/source/packages/server/src/navigation/GridNavigation.ts
-          grep -q "persistentPursuit" work/source/packages/server/src/entities/Monster.ts
-          grep -q "rebuildPath" work/source/packages/server/src/entities/Monster.ts
-          grep -q "MONSTER_STUCK_REPATH_MS" work/source/packages/server/src/entities/Monster.ts
-          grep -q "getOutbreakSpawnPosition" work/source/packages/server/src/states/GameState.ts
-          grep -q "prepareOutbreakSpawnLanes" work/source/packages/server/src/states/GameState.ts
-          grep -q "monster.update(this.players, this.navigation)" work/source/packages/server/src/states/GameState.ts
-          grep -q "Movement acknowledgement is intentionally not changed by rotation" work/source/packages/server/src/states/GameState.ts
-          grep -q "movementAccumulator" work/source/packages/client/src/game/Game.ts
-          grep -q "hunterAI: true" work/source/packages/server/src/index.ts
-          grep -q "grid-a-star-pathfinding" work/source/packages/server/src/index.ts
-          grep -q "shring-shooter" work/source/packages/server/dist/index.js
-          ! grep -q "TOREMOVE_MAX_FPS_MS" work/source/packages/client/src/game/Game.ts
-          ! grep -q "tosios.online" work/source/packages/client/public/index.html
-
-      - name: Test live Hunter AI and all previous gameplay
-        shell: bash
-        working-directory: work/source
-        run: |
-          set -euo pipefail
-          SERVER_HOST=127.0.0.1 \
-          SERVER_PORT=31025 \
-          PORT=31025 \
-          NODE_ENV=production \
-          node packages/server/dist/index.js > server-test.log 2>&1 &
-          PID=$!
-          cleanup() {
-            kill -TERM "$PID" 2>/dev/null || true
-            wait "$PID" 2>/dev/null || true
-            cat server-test.log 2>/dev/null || true
-          }
-          trap cleanup EXIT
-
-          for attempt in $(seq 1 90); do
-            if curl --fail --silent http://127.0.0.1:31025/health > health.json; then
-              grep -q '"ok":true' health.json
-              grep -q '"service":"shring-shooter"' health.json
-              grep -q '"version":"3.4.0"' health.json
-              grep -q '"outbreak":true' health.json
-              grep -q '"arsenal":true' health.json
-              grep -q '"smoothMovement":true' health.json
-              grep -q '"hunterAI":true' health.json
-              grep -q '"globalOutbreakAggro":true' health.json
-              grep -q '"gridPathfinding":true' health.json
-              grep -q '"encounterDirector":true' health.json
-              grep -q '"simulationHz":60' health.json
-              grep -q '"snapshotHz":30' health.json
-              break
-            fi
-            if ! kill -0 "$PID" 2>/dev/null; then exit 1; fi
-            if [ "$attempt" -eq 90 ]; then
-              echo "Health endpoint did not become ready" >&2
-              exit 1
-            fi
-            sleep 1
-          done
-
-          cp "$GITHUB_WORKSPACE/tosios-builder/smoke.cjs" ./smoke.cjs
-          cp "$GITHUB_WORKSPACE/tosios-builder/hunter-ai-smoke.cjs" ./hunter-ai-smoke.cjs
-          node smoke.cjs
-          node hunter-ai-smoke.cjs
-
-          curl --fail --silent http://127.0.0.1:31025/ | grep -q "Shring Shooter"
-          curl --fail --silent http://127.0.0.1:31025/script.js > /dev/null
-          curl --fail --silent http://127.0.0.1:31025/api/status > status.json
-          grep -q '"outbreak"' status.json
-          grep -q '"deathmatch"' status.json
-          grep -q '"team deathmatch"' status.json
-          grep -q '"four-weapon-arsenal"' status.json
-          grep -q '"server-authoritative-reloads"' status.json
-          grep -q '"fixed-step-movement"' status.json
-          grep -q '"soft-local-correction"' status.json
-          grep -q '"global-outbreak-aggro"' status.json
-          grep -q '"nearest-living-player-targeting"' status.json
-          grep -q '"grid-a-star-pathfinding"' status.json
-          grep -q '"dynamic-path-replanning"' status.json
-          grep -q '"stuck-recovery"' status.json
-          grep -q '"reachable-spawn-lanes"' status.json
-          cat health.json
-          cat status.json
-
-      - name: Install production-only dependencies
-        shell: bash
-        working-directory: work/source
-        run: |
-          set -euo pipefail
-          rm -rf node_modules packages/client/node_modules packages/common/node_modules packages/server/node_modules
-          NODE_ENV=production yarn install --production --frozen-lockfile --non-interactive
-          test -d node_modules/express
-          test -d node_modules/cors
-          du -sh node_modules packages/client/public packages/server/dist
-
-      - name: Assemble flat Pterodactyl package
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p package
-          rsync -a --delete \
-            --exclude '.git' \
-            --exclude '.github' \
-            --exclude 'images' \
-            --exclude 'scripts/dev.sh' \
-            --exclude 'server-test.log' \
-            --exclude 'health.json' \
-            --exclude 'status.json' \
-            --exclude 'smoke.cjs' \
-            --exclude 'hunter-ai-smoke.cjs' \
-            work/source/ package/
-          cp tosios-builder/start.sh package/start.sh
-          cp tosios-builder/README-FIRST.md package/README-FIRST.md
-          chmod +x package/start.sh
-          cat > package/VERSION.json <<JSON
-          {
-            "version": "${RELEASE_VERSION}",
-            "upstream": "halftheopposite/TOSIOS",
-            "upstreamCommit": "${UPSTREAM_COMMIT}",
-            "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "publicUrl": "https://shootup.shring.net",
-            "port": 31025,
-            "guestPlay": true,
-            "simulationHz": 60,
-            "snapshotHz": 30,
-            "hunterAI": true,
-            "pathfinding": "grid-a-star",
-            "globalOutbreakAggro": true,
-            "encounterDirector": "reachable-spawn-lanes",
-            "gameplay": "Hunter AI, Smooth Movement, Outbreak co-op, four-weapon Arsenal, deathmatch, and team deathmatch"
-          }
-          JSON
-          test -x package/start.sh
-          test -s package/packages/client/public/script.js
-          test -s package/packages/server/dist/index.js
-          test -s package/packages/server/src/navigation/GridNavigation.ts
-          test -d package/node_modules/express
-          test -f package/LICENSE
-          grep -q '"version": "3.4.0"' package/VERSION.json
-          grep -q '"hunterAI": true' package/VERSION.json
-          grep -q '"pathfinding": "grid-a-star"' package/VERSION.json
-          du -sh package
-
-      - name: Validate exact packaged runtime
-        shell: bash
-        working-directory: package
-        run: |
-          set -euo pipefail
-          SERVER_HOST=127.0.0.1 \
-          SERVER_PORT=31026 \
-          NODE_ENV=production \
-          bash ./start.sh > package-test.log 2>&1 &
-          PID=$!
-          cleanup() {
-            kill -TERM "$PID" 2>/dev/null || true
-            wait "$PID" 2>/dev/null || true
-            cat package-test.log 2>/dev/null || true
-          }
-          trap cleanup EXIT
-          for attempt in $(seq 1 90); do
-            if curl --fail --silent http://127.0.0.1:31026/health > package-health.json; then
-              grep -q '"ok":true' package-health.json
-              grep -q '"version":"3.4.0"' package-health.json
-              grep -q '"outbreak":true' package-health.json
-              grep -q '"arsenal":true' package-health.json
-              grep -q '"smoothMovement":true' package-health.json
-              grep -q '"hunterAI":true' package-health.json
-              grep -q '"globalOutbreakAggro":true' package-health.json
-              grep -q '"gridPathfinding":true' package-health.json
-              grep -q '"encounterDirector":true' package-health.json
-              curl --fail --silent http://127.0.0.1:31026/ | grep -q "Shring Shooter"
-              curl --fail --silent http://127.0.0.1:31026/api/status | grep -q '"grid-a-star-pathfinding"'
-              cat package-health.json
-              exit 0
-            fi
-            if ! kill -0 "$PID" 2>/dev/null; then exit 1; fi
-            sleep 1
-          done
-          echo "Packaged runtime did not become ready" >&2
-          exit 1
-
-      - name: Remove runtime test files
-        shell: bash
-        run: rm -f package/package-test.log package/package-health.json
-
-      - name: Create ZIP and checksum
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -f "$ZIP_NAME" "$ZIP_NAME.sha256"
-          cd package
-          zip -r -6 "$GITHUB_WORKSPACE/$ZIP_NAME" .
-          cd "$GITHUB_WORKSPACE"
-          sha256sum "$ZIP_NAME" > "$ZIP_NAME.sha256"
-          unzip -t "$ZIP_NAME"
-          stat -c 'ZIP size: %s bytes' "$ZIP_NAME"
+      - name: Build and validate the exact Pterodactyl release
+        run: bash tosios-builder/ci-build.sh
 
       - name: Upload Actions artifact
         uses: actions/upload-artifact@v4
         with:
-          name: shring-shooter-hunter-ai-v3.4.0
+          name: shring-shooter-siege-maps-v3.5.0
           path: |
-            Shring-Shooter-Hunter-AI-v3.4.0-PTERODACTYL-FLAT.zip
-            Shring-Shooter-Hunter-AI-v3.4.0-PTERODACTYL-FLAT.zip.sha256
+            Shring-Shooter-Siege-Maps-v3.5.0-PTERODACTYL-FLAT.zip
+            Shring-Shooter-Siege-Maps-v3.5.0-PTERODACTYL-FLAT.zip.sha256
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
@@ -300,28 +59,27 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.4.0
-          name: Shring Shooter Hunter AI v3.4.0
+          tag_name: v3.5.0
+          name: Shring Shooter Siege Maps v3.5.0
           body: |
-            Verified Hunter AI milestone built from the MIT-licensed TOSIOS foundation.
+            Verified Siege Maps milestone built from the MIT-licensed TOSIOS foundation.
 
-            Enemy and encounter improvements:
-            - global Outbreak awareness across every map size
-            - nearest-living-player target selection and intelligent retargeting
-            - tile-grid A* routing around map walls
-            - dynamic path replanning when players move
-            - direct pursuit when line of sight opens
-            - stuck detection with forced rerouting and recovery steering
-            - reachable multi-lane wave spawning around the player group
-            - gigantic-map multiplayer pursuit verification
+            New arenas:
+            - Outbreak Citadel: courtyard, throne hall, armory breaches, forge holdout, and Royal Guard boss arena
+            - Ashen Catacombs: central ossuary, four crypt wings, looping corridors, and Bone Colossus boss arena
 
-            Also includes Smooth Movement, the four-weapon Arsenal, Outbreak waves and bosses, revives, private rooms, Deathmatch, and Team Deathmatch.
+            New encounter systems:
+            - named zones synchronized to every client
+            - authored team starts and opening armories
+            - map-authored multi-front spawn gates
+            - rewards delivered at the active holdout
+            - boss-compatible routes and two-player runtime tests in both maps
 
-            Extract directly into `/home/container` and start with:
+            Also includes Hunter AI, Smooth Movement, the four-weapon Arsenal, Outbreak, private rooms, Deathmatch, and Team Deathmatch.
 
-            `bash ./start.sh`
+            Extract directly into `/home/container` and start with `bash ./start.sh`.
           files: |
-            Shring-Shooter-Hunter-AI-v3.4.0-PTERODACTYL-FLAT.zip
-            Shring-Shooter-Hunter-AI-v3.4.0-PTERODACTYL-FLAT.zip.sha256
+            Shring-Shooter-Siege-Maps-v3.5.0-PTERODACTYL-FLAT.zip
+            Shring-Shooter-Siege-Maps-v3.5.0-PTERODACTYL-FLAT.zip.sha256
           fail_on_unmatched_files: true
           make_latest: true
