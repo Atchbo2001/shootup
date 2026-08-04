@@ -19,7 +19,7 @@ function waitFor(predicate, timeoutMs = 20000, message = 'Timed out waiting for 
                 clearInterval(timer);
                 reject(error);
             }
-        }, 100);
+        }, 50);
     });
 }
 
@@ -39,6 +39,107 @@ function bulletsFor(room, playerId) {
     return Array.from(room.state?.bullets || []).filter((bullet) => bullet.playerId === playerId);
 }
 
+function point(entity) {
+    return { x: entity.x, y: entity.y };
+}
+
+function distance(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+async function verifyMovement(roomA, roomB) {
+    const local = () => player(roomA, roomA.sessionId);
+    const remote = () => player(roomB, roomA.sessionId);
+    const directions = [
+        { x: 1, y: 0 },
+        { x: -1, y: 0 },
+        { x: 0, y: 1 },
+        { x: 0, y: -1 },
+    ];
+
+    let timestamp = Date.now();
+    let selectedDirection = null;
+    let firstStepDistance = 0;
+
+    for (const direction of directions) {
+        const before = point(local());
+        timestamp += 1;
+        roomA.send('move', { type: 'move', ts: timestamp, value: direction });
+        await waitFor(
+            () => local()?.ack === timestamp,
+            5000,
+            `Movement acknowledgement ${timestamp} did not synchronize`,
+        );
+        firstStepDistance = distance(before, point(local()));
+        if (firstStepDistance > 0.25) {
+            selectedDirection = direction;
+            break;
+        }
+    }
+
+    assert.ok(selectedDirection, 'Player could not move in any cardinal direction');
+    assert.ok(firstStepDistance > 0.25, 'Authoritative movement did not change position');
+
+    await waitFor(
+        () => remote() && distance(point(local()), point(remote())) < 0.01,
+        5000,
+        'Remote client did not receive the authoritative movement snapshot',
+    );
+
+    const movementAck = timestamp;
+    const targetRotation = 1.234;
+    const rotationTimestamp = movementAck + 1000;
+    roomA.send('rotate', {
+        type: 'rotate',
+        ts: rotationTimestamp,
+        value: { rotation: targetRotation },
+    });
+    await waitFor(
+        () => Math.abs(local()?.rotation - targetRotation) < 0.001,
+        5000,
+        'Authoritative rotation did not synchronize',
+    );
+    assert.equal(
+        local().ack,
+        movementAck,
+        'Rotation timestamp overwrote the movement-only acknowledgement',
+    );
+
+    const burstStart = point(local());
+    for (let index = 0; index < 24; index += 1) {
+        timestamp += 1;
+        roomA.send('move', {
+            type: 'move',
+            ts: timestamp,
+            value: selectedDirection,
+        });
+    }
+    const finalAck = timestamp;
+    await waitFor(
+        () => local()?.ack === finalAck,
+        5000,
+        'Server did not process the complete monotonic movement burst',
+    );
+    await waitFor(
+        () => remote() && distance(point(local()), point(remote())) < 0.01,
+        5000,
+        'Clients did not converge on the same post-burst position',
+    );
+
+    return {
+        clients: 2,
+        simulationHz: 60,
+        snapshotHz: 30,
+        firstStepDistance,
+        burstDistance: distance(burstStart, point(local())),
+        movementAck,
+        rotationTimestamp,
+        finalAck,
+        rotationPreservedMovementAck: true,
+        clientsConverged: true,
+    };
+}
+
 (async () => {
     const clientA = new Client(url);
     const clientB = new Client(url);
@@ -46,6 +147,8 @@ function bulletsFor(room, playerId) {
     let outbreakB;
     let pvpA;
     let pvpB;
+    let movementA;
+    let movementB;
 
     try {
         outbreakA = await clientA.create('game', {
@@ -156,8 +259,35 @@ function bulletsFor(room, playerId) {
             'Public deathmatch room must remain visible',
         );
 
+        await leave(pvpB);
+        pvpB = undefined;
+        await leave(pvpA);
+        pvpA = undefined;
+
+        movementA = await clientA.create('game', {
+            playerName: 'Move-Alpha',
+            roomName: 'CI Movement Isolation',
+            roomMap: 'small',
+            roomMaxPlayers: 4,
+            mode: 'deathmatch',
+            privateRoom: true,
+        });
+        movementB = await clientB.joinById(movementA.id, { playerName: 'Move-Bravo' });
+        await waitFor(
+            () => movementA.state?.players?.size === 2 && movementB.state?.players?.size === 2,
+            15000,
+            'Movement clients did not synchronize',
+        );
+        await waitFor(
+            () => movementA.state?.game?.state === 'game',
+            25000,
+            'Movement room did not become active',
+        );
+        const movement = await verifyMovement(movementA, movementB);
+
         console.log(JSON.stringify({
             ok: true,
+            smoothMovement: movement,
             arsenal: {
                 weapons: ['sidearm', 'smg', 'rifle', 'scattergun'],
                 startingArmory: true,
@@ -176,6 +306,8 @@ function bulletsFor(room, playerId) {
             },
         }));
     } finally {
+        await leave(movementB);
+        await leave(movementA);
         await leave(pvpB);
         await leave(pvpA);
         await leave(outbreakB);

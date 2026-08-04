@@ -1,4 +1,4 @@
-name: Build Shring Shooter Arsenal
+name: Build Shring Shooter Smooth Movement
 
 on:
   push:
@@ -8,6 +8,8 @@ on:
       - "tosios-builder/**"
       - ".github/workflows/build-tosios.yml"
       - "README.md"
+      - "ROADMAP.md"
+      - "VERSION-NEXT"
   pull_request:
     branches:
       - main
@@ -15,6 +17,8 @@ on:
       - "tosios-builder/**"
       - ".github/workflows/build-tosios.yml"
       - "README.md"
+      - "ROADMAP.md"
+      - "VERSION-NEXT"
   workflow_dispatch:
 
 permissions:
@@ -22,12 +26,12 @@ permissions:
 
 env:
   UPSTREAM_COMMIT: 98de136e524d25c5877adc9523c9445bc2b4a262
-  RELEASE_VERSION: 3.2.0
-  ZIP_NAME: Shring-Shooter-Arsenal-v3.2.0-PTERODACTYL-FLAT.zip
+  RELEASE_VERSION: 3.3.0
+  ZIP_NAME: Shring-Shooter-Smooth-Movement-v3.3.0-PTERODACTYL-FLAT.zip
 
 jobs:
   build:
-    name: Build, arsenal test, and package
+    name: Build, movement test, multiplayer test, and package
     runs-on: ubuntu-24.04
     timeout-minutes: 40
 
@@ -50,13 +54,16 @@ jobs:
           test -f work/source/packages/server/src/index.ts
           test -f work/source/packages/client/public/index.html
 
-      - name: Apply verified Shring Arsenal overlay
+      - name: Apply verified Shring Smooth Movement overlay
         run: node tosios-builder/apply-patches.mjs work/source
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+
+      - name: Verify deterministic movement timing and source invariants
+        run: node tosios-builder/movement-check.cjs work/source
 
       - name: Install Yarn Classic
         run: npm install --global yarn@1.22.22
@@ -72,7 +79,7 @@ jobs:
           NODE_ENV: production
         run: yarn build
 
-      - name: Validate compiled Arsenal output
+      - name: Validate compiled Smooth Movement output
         shell: bash
         run: |
           set -euo pipefail
@@ -80,14 +87,19 @@ jobs:
           test -s work/source/packages/server/dist/index.js
           grep -q "Shring Shooter" work/source/packages/client/public/index.html
           grep -q "export const WEAPONS" work/source/packages/common/src/constants.ts
-          grep -q "weapon-scattergun" work/source/packages/common/src/models/Prop.ts
-          grep -q "startPlayerReload" work/source/packages/server/src/states/GameState.ts
-          grep -q "WeaponStatus" work/source/packages/client/src/screens/Game/components/HUD/HUD.tsx
-          grep -q "server-authoritative-reloads" work/source/packages/server/src/index.ts
+          grep -q "SIMULATION_STEP_MS" work/source/packages/common/src/constants.ts
+          grep -q "NETWORK_PATCH_RATE_MS" work/source/packages/common/src/constants.ts
+          grep -q "setPatchRate(Constants.NETWORK_PATCH_RATE_MS)" work/source/packages/server/src/rooms/GameRoom.ts
+          grep -q "Movement acknowledgement is intentionally not changed by rotation" work/source/packages/server/src/states/GameState.ts
+          grep -q "movementAccumulator" work/source/packages/client/src/game/Game.ts
+          grep -q "Normal latency corrections are blended instead of hard-snapped" work/source/packages/client/src/game/Game.ts
+          grep -q "smoothMovement: true" work/source/packages/server/src/index.ts
+          grep -q "fixed-step-movement" work/source/packages/server/src/index.ts
           grep -q "shring-shooter" work/source/packages/server/dist/index.js
+          ! grep -q "TOREMOVE_MAX_FPS_MS" work/source/packages/client/src/game/Game.ts
           ! grep -q "tosios.online" work/source/packages/client/public/index.html
 
-      - name: Test live server, Arsenal, private Outbreak, and classic PvP
+      - name: Test live server, movement acknowledgements, Arsenal, Outbreak, and classic PvP
         shell: bash
         working-directory: work/source
         run: |
@@ -109,9 +121,12 @@ jobs:
             if curl --fail --silent http://127.0.0.1:31025/health > health.json; then
               grep -q '"ok":true' health.json
               grep -q '"service":"shring-shooter"' health.json
-              grep -q '"version":"3.2.0"' health.json
+              grep -q '"version":"3.3.0"' health.json
               grep -q '"outbreak":true' health.json
               grep -q '"arsenal":true' health.json
+              grep -q '"smoothMovement":true' health.json
+              grep -q '"simulationHz":60' health.json
+              grep -q '"snapshotHz":30' health.json
               break
             fi
             if ! kill -0 "$PID" 2>/dev/null; then
@@ -135,7 +150,10 @@ jobs:
           grep -q '"team deathmatch"' status.json
           grep -q '"four-weapon-arsenal"' status.json
           grep -q '"server-authoritative-reloads"' status.json
-          grep -q '"ammo-crates"' status.json
+          grep -q '"fixed-step-movement"' status.json
+          grep -q '"frame-rate-independent-interpolation"' status.json
+          grep -q '"movement-only-reconciliation-acks"' status.json
+          grep -q '"soft-local-correction"' status.json
           cat health.json
           cat status.json
 
@@ -177,7 +195,9 @@ jobs:
             "publicUrl": "https://shootup.shring.net",
             "port": 31025,
             "guestPlay": true,
-            "gameplay": "Outbreak co-op, four-weapon arsenal, deathmatch, and team deathmatch"
+            "simulationHz": 60,
+            "snapshotHz": 30,
+            "gameplay": "Smooth Movement, Outbreak co-op, four-weapon Arsenal, deathmatch, and team deathmatch"
           }
           JSON
           test -x package/start.sh
@@ -185,6 +205,9 @@ jobs:
           test -s package/packages/server/dist/index.js
           test -d package/node_modules/express
           test -f package/LICENSE
+          grep -q '"version": "3.3.0"' package/VERSION.json
+          grep -q '"simulationHz": 60' package/VERSION.json
+          grep -q '"snapshotHz": 30' package/VERSION.json
           du -sh package
 
       - name: Validate exact packaged runtime
@@ -206,10 +229,14 @@ jobs:
           for attempt in $(seq 1 90); do
             if curl --fail --silent http://127.0.0.1:31026/health > package-health.json; then
               grep -q '"ok":true' package-health.json
-              grep -q '"version":"3.2.0"' package-health.json
+              grep -q '"version":"3.3.0"' package-health.json
               grep -q '"outbreak":true' package-health.json
               grep -q '"arsenal":true' package-health.json
+              grep -q '"smoothMovement":true' package-health.json
+              grep -q '"simulationHz":60' package-health.json
+              grep -q '"snapshotHz":30' package-health.json
               curl --fail --silent http://127.0.0.1:31026/ | grep -q "Shring Shooter"
+              curl --fail --silent http://127.0.0.1:31026/api/status | grep -q '"soft-local-correction"'
               cat package-health.json
               exit 0
             fi
@@ -240,10 +267,10 @@ jobs:
       - name: Upload Actions artifact
         uses: actions/upload-artifact@v4
         with:
-          name: shring-shooter-arsenal-v3.2.0
+          name: shring-shooter-smooth-movement-v3.3.0
           path: |
-            Shring-Shooter-Arsenal-v3.2.0-PTERODACTYL-FLAT.zip
-            Shring-Shooter-Arsenal-v3.2.0-PTERODACTYL-FLAT.zip.sha256
+            Shring-Shooter-Smooth-Movement-v3.3.0-PTERODACTYL-FLAT.zip
+            Shring-Shooter-Smooth-Movement-v3.3.0-PTERODACTYL-FLAT.zip.sha256
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
@@ -252,26 +279,32 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.2.0
-          name: Shring Shooter Arsenal v3.2.0
+          tag_name: v3.3.0
+          name: Shring Shooter Smooth Movement v3.3.0
           body: |
-            Verified Arsenal milestone built from the MIT-licensed TOSIOS foundation.
+            Verified Smooth Movement milestone built from the MIT-licensed TOSIOS foundation.
 
-            Included:
-            - sidearm, SMG, rifle, and scattergun
-            - server-authoritative magazines, reserve ammunition, fire rates, damage, range, and reload timing
-            - manual reload, automatic empty-magazine reload, and mobile reload control
-            - starting and map armories, ammunition crates, weapon drops, and wave rewards
-            - weapon-colored projectiles and weapon/ammo/reload HUD
-            - improved remote projectile synchronization
-            - existing Outbreak waves, bosses, revives, private rooms, deathmatch, and team deathmatch
+            Movement fixes:
+            - fixed 60 Hz client and authoritative server movement simulation
+            - consistent movement speed across common monitor refresh rates
+            - 30 Hz server snapshots
+            - frame-rate-independent remote interpolation
+            - movement-only acknowledgement sequencing
+            - bounded reconciliation replay and stale-command cleanup
+            - soft local correction for normal network differences
+            - hard snaps retained only for teleports, respawns, and large errors
+
+            Also included:
+            - Outbreak waves, bosses, drops, downing, and revives
+            - sidearm, SMG, rifle, and scattergun Arsenal
+            - private rooms, deathmatch, and team deathmatch
             - precompiled Pterodactyl runtime with production dependencies
 
             Extract directly into `/home/container` and start with:
 
             `bash ./start.sh`
           files: |
-            Shring-Shooter-Arsenal-v3.2.0-PTERODACTYL-FLAT.zip
-            Shring-Shooter-Arsenal-v3.2.0-PTERODACTYL-FLAT.zip.sha256
+            Shring-Shooter-Smooth-Movement-v3.3.0-PTERODACTYL-FLAT.zip
+            Shring-Shooter-Smooth-Movement-v3.3.0-PTERODACTYL-FLAT.zip.sha256
           fail_on_unmatched_files: true
           make_latest: true
