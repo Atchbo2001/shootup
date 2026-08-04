@@ -1,4 +1,4 @@
-name: Build Shring Shooter Outbreak
+name: Build Shring Shooter Arsenal
 
 on:
   push:
@@ -7,12 +7,14 @@ on:
     paths:
       - "tosios-builder/**"
       - ".github/workflows/build-tosios.yml"
+      - "README.md"
   pull_request:
     branches:
       - main
     paths:
       - "tosios-builder/**"
       - ".github/workflows/build-tosios.yml"
+      - "README.md"
   workflow_dispatch:
 
 permissions:
@@ -20,14 +22,14 @@ permissions:
 
 env:
   UPSTREAM_COMMIT: 98de136e524d25c5877adc9523c9445bc2b4a262
-  RELEASE_VERSION: 3.1.0
-  ZIP_NAME: Shring-Shooter-Outbreak-v3.1.0-PTERODACTYL-FLAT.zip
+  RELEASE_VERSION: 3.2.0
+  ZIP_NAME: Shring-Shooter-Arsenal-v3.2.0-PTERODACTYL-FLAT.zip
 
 jobs:
   build:
-    name: Build, Outbreak test, and package
+    name: Build, arsenal test, and package
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 40
 
     steps:
       - name: Check out Shring repository
@@ -48,7 +50,7 @@ jobs:
           test -f work/source/packages/server/src/index.ts
           test -f work/source/packages/client/public/index.html
 
-      - name: Apply verified Shring Outbreak patches
+      - name: Apply verified Shring Arsenal overlay
         run: node tosios-builder/apply-patches.mjs work/source
 
       - name: Set up Node.js 22
@@ -70,20 +72,22 @@ jobs:
           NODE_ENV: production
         run: yarn build
 
-      - name: Validate compiled Outbreak output
+      - name: Validate compiled Arsenal output
         shell: bash
         run: |
           set -euo pipefail
           test -s work/source/packages/client/public/script.js
           test -s work/source/packages/server/dist/index.js
           grep -q "Shring Shooter" work/source/packages/client/public/index.html
-          grep -q "outbreak" work/source/packages/common/src/constants.ts
-          grep -q "OUTBREAK_BOSS_INTERVAL" work/source/packages/common/src/constants.ts
-          grep -q "privateRoom" work/source/packages/server/src/rooms/GameRoom.ts
+          grep -q "export const WEAPONS" work/source/packages/common/src/constants.ts
+          grep -q "weapon-scattergun" work/source/packages/common/src/models/Prop.ts
+          grep -q "startPlayerReload" work/source/packages/server/src/states/GameState.ts
+          grep -q "WeaponStatus" work/source/packages/client/src/screens/Game/components/HUD/HUD.tsx
+          grep -q "server-authoritative-reloads" work/source/packages/server/src/index.ts
           grep -q "shring-shooter" work/source/packages/server/dist/index.js
           ! grep -q "tosios.online" work/source/packages/client/public/index.html
 
-      - name: Test live server, private Outbreak, and classic PvP
+      - name: Test live server, Arsenal, private Outbreak, and classic PvP
         shell: bash
         working-directory: work/source
         run: |
@@ -105,8 +109,9 @@ jobs:
             if curl --fail --silent http://127.0.0.1:31025/health > health.json; then
               grep -q '"ok":true' health.json
               grep -q '"service":"shring-shooter"' health.json
-              grep -q '"version":"3.1.0"' health.json
+              grep -q '"version":"3.2.0"' health.json
               grep -q '"outbreak":true' health.json
+              grep -q '"arsenal":true' health.json
               break
             fi
             if ! kill -0 "$PID" 2>/dev/null; then
@@ -128,8 +133,9 @@ jobs:
           grep -q '"outbreak"' status.json
           grep -q '"deathmatch"' status.json
           grep -q '"team deathmatch"' status.json
-          grep -q '"boss-waves"' status.json
-          grep -q '"revives"' status.json
+          grep -q '"four-weapon-arsenal"' status.json
+          grep -q '"server-authoritative-reloads"' status.json
+          grep -q '"ammo-crates"' status.json
           cat health.json
           cat status.json
 
@@ -155,7 +161,6 @@ jobs:
             --exclude 'images' \
             --exclude 'scripts/dev.sh' \
             --exclude 'server-test.log' \
-            --exclude 'server-test.pid' \
             --exclude 'health.json' \
             --exclude 'status.json' \
             --exclude 'smoke.cjs' \
@@ -172,7 +177,7 @@ jobs:
             "publicUrl": "https://shootup.shring.net",
             "port": 31025,
             "guestPlay": true,
-            "gameplay": "Outbreak co-op, deathmatch, and team deathmatch"
+            "gameplay": "Outbreak co-op, four-weapon arsenal, deathmatch, and team deathmatch"
           }
           JSON
           test -x package/start.sh
@@ -201,8 +206,9 @@ jobs:
           for attempt in $(seq 1 90); do
             if curl --fail --silent http://127.0.0.1:31026/health > package-health.json; then
               grep -q '"ok":true' package-health.json
-              grep -q '"version":"3.1.0"' package-health.json
+              grep -q '"version":"3.2.0"' package-health.json
               grep -q '"outbreak":true' package-health.json
+              grep -q '"arsenal":true' package-health.json
               curl --fail --silent http://127.0.0.1:31026/ | grep -q "Shring Shooter"
               cat package-health.json
               exit 0
@@ -234,10 +240,10 @@ jobs:
       - name: Upload Actions artifact
         uses: actions/upload-artifact@v4
         with:
-          name: shring-shooter-outbreak-v3.1.0
+          name: shring-shooter-arsenal-v3.2.0
           path: |
-            Shring-Shooter-Outbreak-v3.1.0-PTERODACTYL-FLAT.zip
-            Shring-Shooter-Outbreak-v3.1.0-PTERODACTYL-FLAT.zip.sha256
+            Shring-Shooter-Arsenal-v3.2.0-PTERODACTYL-FLAT.zip
+            Shring-Shooter-Arsenal-v3.2.0-PTERODACTYL-FLAT.zip.sha256
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
@@ -246,29 +252,26 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.1.0
-          name: Shring Shooter Outbreak v3.1.0
+          tag_name: v3.2.0
+          name: Shring Shooter Arsenal v3.2.0
           body: |
-            Verified Outbreak milestone built from the MIT-licensed TOSIOS foundation.
+            Verified Arsenal milestone built from the MIT-licensed TOSIOS foundation.
 
             Included:
-            - solo and cooperative Outbreak rooms
-            - escalating waves and boss rounds
-            - grunt, runner, tank, and boss enemies
-            - server-authoritative no-PvP Outbreak combat
-            - scoring, health drops, and rapid-fire drops
-            - downing, bleed-out, and teammate revives
-            - private unlisted rooms with shareable URLs
-            - hit markers and expanded wave/score HUD
-            - existing deathmatch and team deathmatch modes
-            - browser and mobile clients
+            - sidearm, SMG, rifle, and scattergun
+            - server-authoritative magazines, reserve ammunition, fire rates, damage, range, and reload timing
+            - manual reload, automatic empty-magazine reload, and mobile reload control
+            - starting and map armories, ammunition crates, weapon drops, and wave rewards
+            - weapon-colored projectiles and weapon/ammo/reload HUD
+            - improved remote projectile synchronization
+            - existing Outbreak waves, bosses, revives, private rooms, deathmatch, and team deathmatch
             - precompiled Pterodactyl runtime with production dependencies
 
             Extract directly into `/home/container` and start with:
 
             `bash ./start.sh`
           files: |
-            Shring-Shooter-Outbreak-v3.1.0-PTERODACTYL-FLAT.zip
-            Shring-Shooter-Outbreak-v3.1.0-PTERODACTYL-FLAT.zip.sha256
+            Shring-Shooter-Arsenal-v3.2.0-PTERODACTYL-FLAT.zip
+            Shring-Shooter-Arsenal-v3.2.0-PTERODACTYL-FLAT.zip.sha256
           fail_on_unmatched_files: true
           make_latest: true
