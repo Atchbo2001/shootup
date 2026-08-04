@@ -1,4 +1,4 @@
-# Shring Shooter: Outbreak v3.1.0 — Pterodactyl package
+# Shring Shooter: Arsenal v3.2.0 — Pterodactyl package
 
 This package is a Shring-modified build of the MIT-licensed TOSIOS browser multiplayer shooter.
 
@@ -21,6 +21,33 @@ This package is a Shring-modified build of the MIT-licensed TOSIOS browser multi
 
 Do not run an install or build command on Pterodactyl. The browser client and Node server are already compiled and production dependencies are included.
 
+## Arsenal milestone
+
+- Sidearm: balanced starter weapon
+- SMG: high rate of fire and large magazine
+- Rifle: high damage, velocity, and range
+- Scattergun: seven-pellet close-range blast
+- server-authoritative damage, ammunition, rate of fire, range, and reload timing
+- magazines and reserve ammunition
+- manual reload with `R` and automatic reload on an empty magazine
+- mobile reload control
+- weapon pickups and ammunition crates
+- starting armory in Outbreak and map armories in classic PvP
+- weapon and ammo drops from enemies
+- weapon plus ammo reward between cleared waves
+- weapon-colored projectiles and a dedicated weapon/ammo/reload HUD
+- improved synchronization for recycled remote projectiles
+
+## Existing gameplay
+
+- solo and cooperative Outbreak rooms
+- escalating waves, four enemy classes, and boss rounds
+- health and rapid-fire drops
+- downing, bleed-out, and teammate revives
+- private unlisted rooms with shareable URLs
+- deathmatch and team deathmatch
+- desktop and mobile controls
+
 ## Verify
 
 ```bash
@@ -28,28 +55,4 @@ curl -fsS http://192.168.1.65:31025/health
 curl -fsS https://shootup.shring.net/health
 ```
 
-## Outbreak mode
-
-- one-player solo or cooperative rooms
-- server-authoritative escalating waves
-- grunt, runner, tank, and boss enemies
-- boss wave every five rounds
-- no player-versus-player damage in Outbreak
-- points for damage and kills
-- health and temporary rapid-fire drops
-- downed players, 15-second bleed-out, and teammate revives
-- press `E` near a downed teammate to revive; mobile players receive a revive button
-- wave, enemy, boss, score, revive, power-up, and bleed-out HUD information
-- hit markers and Outbreak announcements
-- endless progression until the squad is eliminated
-
-## Rooms and classic modes
-
-- public room browser
-- optional private unlisted rooms joined through the shared room URL
-- deathmatch and team deathmatch remain available
-- small and gigantic maps
-- desktop and mobile controls
-- up to 16 players depending on room settings
-
-This is the first major Outbreak milestone. It does not yet include the later roadmap's full weapon arsenal, attachments, additional maps, persistent accounts, or progression system.
+Persistent accounts, XP, unlocks, attachments, and additional maps remain later roadmap milestones.
