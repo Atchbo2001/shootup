@@ -1,4 +1,4 @@
-# Shring Shooter: Hunter AI v3.4.0 — Pterodactyl package
+# Shring Shooter: Siege Maps v3.5.0 — Pterodactyl package
 
 This package is a Shring-modified build of the MIT-licensed TOSIOS browser multiplayer shooter.
 
@@ -21,27 +21,39 @@ This package is a Shring-modified build of the MIT-licensed TOSIOS browser multi
 
 Do not run an install or build command on Pterodactyl. The browser client and Node server are already compiled and production dependencies are included.
 
-## Hunter AI milestone
+## Siege Maps milestone
 
-- Outbreak enemies acquire players across the entire map instead of waiting for close-range sight
-- enemies select the nearest living player and change targets only when another player is meaningfully closer
-- tile-grid A* pathfinding routes enemies around walls on the gigantic map
-- routes are recalculated as players move and when a path becomes stale
-- enemies switch back to direct pursuit when line of sight opens
-- stalled enemies force a new path and use recovery steering instead of remaining pinned to a wall
-- wave enemies spawn through reachable lanes around the player group rather than arbitrary unreachable locations
-- gigantic-map multiplayer pursuit is part of the release gate
+### Outbreak Citadel
+
+- central Citadel Courtyard cooperative start
+- Throne Hall Siege and two Armory Breach encounters
+- Southern Forge Holdout
+- looping flank corridors and multiple attack fronts
+- Royal Guard boss arena
+
+### Ashen Catacombs
+
+- central Ossuary cooperative start
+- northwest, northeast, southwest, and southeast crypt encounters
+- looping corridors and alternate retreat routes
+- fixed opening armory
+- Bone Colossus boss arena
+
+### Encounter systems
+
+- the active encounter name is synchronized to every client and displayed in the Outbreak HUD
+- team starts and opening armories are authored per map
+- waves use map-authored spawn gates instead of arbitrary positions
+- rewards are delivered to the active holdout reward point
+- map topology, boss clearance, spawn coverage, and two-player pursuit are release gates
 
 ## Existing gameplay
 
+- global Hunter AI awareness, nearest-player targeting, A* routing, dynamic replanning, and stuck recovery
 - fixed 60 Hz movement simulation and 30 Hz authoritative snapshots
 - sidearm, SMG, rifle, and scattergun
 - server-authoritative ammunition, damage, range, firing rate, and reload timing
-- weapon pickups, ammunition crates, armories, enemy drops, and wave rewards
-- solo and cooperative Outbreak rooms
-- escalating waves, four enemy classes, and boss rounds
-- health and rapid-fire drops
-- downing, bleed-out, and teammate revives
+- cooperative Outbreak waves, boss rounds, drops, downing, bleed-out, and teammate revives
 - private unlisted rooms with shareable URLs
 - deathmatch and team deathmatch
 - desktop and mobile controls
@@ -53,6 +65,6 @@ curl -fsS http://192.168.1.65:31025/health
 curl -fsS https://shootup.shring.net/health
 ```
 
-The health response for this package reports version `3.4.0`, `hunterAI: true`, `globalOutbreakAggro: true`, `gridPathfinding: true`, and `encounterDirector: true`.
+The health response for this package reports version `3.5.0`, `siegeMaps: true`, `namedEncounterZones: true`, `hunterAI: true`, and `smoothMovement: true`.
 
-The next roadmap milestone is purpose-built Outbreak maps and encounter layouts.
+The next roadmap milestone expands enemy and boss variety with stronger combat roles and map-specific encounter behavior.
