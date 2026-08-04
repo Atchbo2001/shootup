@@ -17,7 +17,7 @@ const clientGame = read('packages/client/src/game/Game.ts');
 const serverIndex = read('packages/server/src/index.ts');
 const packageJson = JSON.parse(read('package.json'));
 
-assert.equal(packageJson.version, '3.3.0');
+assert.equal(packageJson.version, '3.4.0');
 assert.match(constants, /SIMULATION_STEP_MS\s*=\s*1000\s*\/\s*60/);
 assert.match(constants, /NETWORK_PATCH_RATE_MS\s*=\s*1000\s*\/\s*30/);
 assert.match(room, /setPatchRate\(Constants\.NETWORK_PATCH_RATE_MS\)/);
@@ -28,8 +28,9 @@ assert.match(clientGame, /movementAccumulator/);
 assert.match(clientGame, /1\s*-\s*Math\.exp\(-deltaMs\s*\/\s*Constants\.REMOTE_INTERPOLATION_MS\)/);
 assert.match(clientGame, /Normal latency corrections are blended instead of hard-snapped/);
 assert.doesNotMatch(clientGame, /TOREMOVE_MAX_FPS_MS/);
-assert.match(serverIndex, /const VERSION = '3\.3\.0'/);
+assert.match(serverIndex, /const VERSION = '3\.4\.0'/);
 assert.match(serverIndex, /smoothMovement:\s*true/);
+assert.match(serverIndex, /hunterAI:\s*true/);
 
 const simulationStepMs = 1000 / 60;
 const maxCatchupSteps = 5;
@@ -69,4 +70,5 @@ console.log(JSON.stringify({
     rotationCannotOverwriteMovementAck: true,
     frameRateIndependentInterpolation: true,
     softLocalCorrection: true,
+    hunterAIRegressionCompatible: true,
 }));
