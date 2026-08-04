@@ -147,7 +147,7 @@ await assertContains('packages/server/src/states/GameState.ts', 'activeEncounter
 await assertContains('packages/server/src/states/GameState.ts', 'monster.update(this.players, this.navigation)');
 await assertContains('packages/server/src/states/GameState.ts', 'Movement acknowledgement is intentionally not changed by rotation');
 await assertContains('packages/client/src/game/Game.ts', 'encounterName');
-await assertContains('packages/client/src/components/game/OutbreakStatus.tsx', 'encounter');
+await assertContains('packages/client/src/screens/Game/components/HUD/OutbreakStatus.tsx', 'encounter');
 await assertContains('packages/client/src/game/Game.ts', 'movementAccumulator');
 await assertContains('packages/server/src/index.ts', "const VERSION = '3.5.0'");
 await assertContains('packages/server/src/index.ts', 'hunterAI: true');
