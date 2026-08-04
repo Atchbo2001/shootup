@@ -9,7 +9,7 @@ if (!sourceArg) throw new Error('Usage: node apply-patches.mjs <tosios-source>')
 
 const root = path.resolve(sourceArg);
 const builderDir = path.dirname(fileURLToPath(import.meta.url));
-const VERSION = '3.3.0';
+const VERSION = '3.4.0';
 const UPSTREAM = '98de136e524d25c5877adc9523c9445bc2b4a262';
 
 const PATCHES = [
@@ -48,6 +48,24 @@ const PATCHES = [
             'smooth-movement-patches.b64.002',
             'smooth-movement-patches.b64.003',
             'smooth-movement-patches.b64.004',
+        ],
+    },
+    {
+        name: 'Hunter AI milestone',
+        sha256: 'd25c8ffb7c6379e97d638ed38d34f7a4959829f005a0929507b309440509f9f7',
+        parts: [
+            'hunter-ai-patches.b64.chunk000a',
+            'hunter-ai-patches.b64.chunk000b',
+            'hunter-ai-patches.b64.chunk000c',
+            'hunter-ai-patches.b64.chunk000d',
+            'hunter-ai-patches.b64.chunk000e',
+            'hunter-ai-patches.b64.chunk000f',
+            'hunter-ai-patches.b64.chunk000g',
+            'hunter-ai-patches.b64.chunk001',
+            'hunter-ai-patches.b64.chunk002',
+            'hunter-ai-patches.b64.chunk003',
+            'hunter-ai-patches.b64.chunk004',
+            'hunter-ai-patches.b64.chunk005',
         ],
     },
 ];
@@ -99,15 +117,21 @@ if (pkg.name !== 'shring-shooter' || pkg.version !== VERSION) {
 
 await assertContains('packages/common/src/constants.ts', 'export const WEAPONS');
 await assertContains('packages/common/src/constants.ts', 'SIMULATION_STEP_MS');
-await assertContains('packages/common/src/constants.ts', 'NETWORK_PATCH_RATE_MS');
-await assertContains('packages/server/src/states/GameState.ts', 'startPlayerReload');
+await assertContains('packages/common/src/constants.ts', 'OUTBREAK_MONSTER_SIGHT = 100000');
+await assertContains('packages/common/src/constants.ts', 'MONSTER_PATH_REFRESH_MS');
+await assertContains('packages/server/src/navigation/GridNavigation.ts', 'class GridNavigation');
+await assertContains('packages/server/src/navigation/GridNavigation.ts', 'findPath(');
+await assertContains('packages/server/src/entities/Monster.ts', 'persistentPursuit');
+await assertContains('packages/server/src/entities/Monster.ts', 'rebuildPath');
+await assertContains('packages/server/src/entities/Monster.ts', 'MONSTER_STUCK_REPATH_MS');
+await assertContains('packages/server/src/states/GameState.ts', 'getOutbreakSpawnPosition');
+await assertContains('packages/server/src/states/GameState.ts', 'prepareOutbreakSpawnLanes');
+await assertContains('packages/server/src/states/GameState.ts', 'monster.update(this.players, this.navigation)');
 await assertContains('packages/server/src/states/GameState.ts', 'Movement acknowledgement is intentionally not changed by rotation');
-await assertContains('packages/client/src/game/Game.ts', 'frame-rate independent');
 await assertContains('packages/client/src/game/Game.ts', 'movementAccumulator');
-await assertContains('packages/client/src/game/Game.ts', 'Normal latency corrections are blended instead of hard-snapped');
-await assertContains('packages/client/src/screens/Game/components/HUD/WeaponStatus.tsx', 'RELOADING');
-await assertContains('packages/server/src/index.ts', "const VERSION = '3.3.0'");
-await assertContains('packages/server/src/index.ts', 'smoothMovement: true');
+await assertContains('packages/server/src/index.ts', "const VERSION = '3.4.0'");
+await assertContains('packages/server/src/index.ts', 'hunterAI: true');
+await assertContains('packages/server/src/index.ts', 'grid-a-star-pathfinding');
 await assertNotContains('packages/server/src/states/GameState.ts', 'player.ack = Math.max');
 
-console.log(`[patch] Applied Shring Shooter Smooth Movement ${VERSION} to pinned TOSIOS ${UPSTREAM}`);
+console.log(`[patch] Applied Shring Shooter Hunter AI ${VERSION} to pinned TOSIOS ${UPSTREAM}`);
