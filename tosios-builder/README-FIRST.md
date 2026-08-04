@@ -1,4 +1,4 @@
-# Shring Shooter: Arsenal v3.2.0 — Pterodactyl package
+# Shring Shooter: Smooth Movement v3.3.0 — Pterodactyl package
 
 This package is a Shring-modified build of the MIT-licensed TOSIOS browser multiplayer shooter.
 
@@ -21,25 +21,23 @@ This package is a Shring-modified build of the MIT-licensed TOSIOS browser multi
 
 Do not run an install or build command on Pterodactyl. The browser client and Node server are already compiled and production dependencies are included.
 
-## Arsenal milestone
+## Smooth Movement milestone
 
-- Sidearm: balanced starter weapon
-- SMG: high rate of fire and large magazine
-- Rifle: high damage, velocity, and range
-- Scattergun: seven-pellet close-range blast
-- server-authoritative damage, ammunition, rate of fire, range, and reload timing
-- magazines and reserve ammunition
-- manual reload with `R` and automatic reload on an empty magazine
-- mobile reload control
-- weapon pickups and ammunition crates
-- starting armory in Outbreak and map armories in classic PvP
-- weapon and ammo drops from enemies
-- weapon plus ammo reward between cleared waves
-- weapon-colored projectiles and a dedicated weapon/ammo/reload HUD
-- improved synchronization for recycled remote projectiles
+- fixed 60 Hz movement simulation on the browser client and authoritative server
+- consistent movement speed at 20, 30, 60, 90, 120, 144, and 240 FPS
+- 30 Hz authoritative server snapshots
+- frame-rate-independent interpolation for remote players and enemies
+- movement-only acknowledgement sequencing; rotation updates no longer overwrite movement acknowledgements
+- bounded input replay and cleanup of acknowledged or stale commands
+- small network corrections blended smoothly instead of immediately snapping the local player
+- hard correction preserved for respawns, teleports, and large position errors
+- large remote teleports still snap immediately instead of sliding across the map
 
-## Existing gameplay
+## Existing Arsenal and gameplay
 
+- sidearm, SMG, rifle, and scattergun
+- server-authoritative ammunition, damage, range, firing rate, and reload timing
+- weapon pickups, ammunition crates, armories, enemy drops, and wave rewards
 - solo and cooperative Outbreak rooms
 - escalating waves, four enemy classes, and boss rounds
 - health and rapid-fire drops
@@ -55,4 +53,6 @@ curl -fsS http://192.168.1.65:31025/health
 curl -fsS https://shootup.shring.net/health
 ```
 
-Persistent accounts, XP, unlocks, attachments, and additional maps remain later roadmap milestones.
+The health response for this package reports version `3.3.0`, `smoothMovement: true`, `simulationHz: 60`, and `snapshotHz: 30`.
+
+Purpose-built maps and encounter layouts are the next roadmap milestone.
