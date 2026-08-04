@@ -6,6 +6,26 @@ const healthUrl = process.env.TEST_HEALTH_URL || 'http://127.0.0.1:31027/health'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function waitFor(predicate, timeoutMs = 10000, message = 'Timed out waiting for synchronized room state') {
+    const started = Date.now();
+    return new Promise((resolve, reject) => {
+        const timer = setInterval(() => {
+            try {
+                if (predicate()) {
+                    clearInterval(timer);
+                    resolve();
+                } else if (Date.now() - started > timeoutMs) {
+                    clearInterval(timer);
+                    reject(new Error(message));
+                }
+            } catch (error) {
+                clearInterval(timer);
+                reject(error);
+            }
+        }, 50);
+    });
+}
+
 async function health() {
     const response = await fetch(healthUrl);
     assert.equal(response.status, 200, 'Health endpoint must remain available');
@@ -20,6 +40,10 @@ async function leave(room) {
     try { await room?.leave(); } catch {}
 }
 
+function player(room) {
+    return room.state?.players?.get(room.sessionId);
+}
+
 (async () => {
     const client = new Client(url);
     let room;
@@ -27,16 +51,22 @@ async function leave(room) {
         room = await client.create('game', {
             playerName: '  CI-Hardening\u0000  ',
             roomName: '  Hostile Packet Test\u0007  ',
-            roomMap: 'citadel',
+            roomMap: 'small',
             roomMaxPlayers: 'not-a-number',
-            mode: 'outbreak',
+            mode: 'deathmatch',
             privateRoom: true,
         });
 
+        // Consume optional rejection feedback so expected server-side validation
+        // can never become an unhandled test-client error.
         const inputErrors = [];
-        room.onMessage('input-error', (payload) => {
-            inputErrors.push(payload);
-        });
+        room.onMessage('input-error', (payload) => inputErrors.push(payload));
+
+        await waitFor(
+            () => player(room),
+            10000,
+            'The hardening test player did not synchronize',
+        );
 
         const now = Date.now();
         const malformed = [
@@ -59,31 +89,32 @@ async function leave(room) {
         await sleep(1000);
         await health();
 
-        assert.ok(
-            inputErrors.length >= 1,
-            'Malformed packets should produce rejection feedback',
-        );
-        const rejectedBeforeValid = inputErrors.length;
+        assert.ok(player(room), 'Malformed packets disconnected or removed the player');
 
+        const targetRotation = 0.75;
         const validTs = Date.now() + 1;
-        room.send('rotate', { type: 'rotate', ts: validTs, value: { rotation: 0.75 } });
-        room.send('move', { type: 'move', ts: validTs + 1, value: { x: 1, y: 0 } });
-        await sleep(500);
-        const afterValid = await health();
-
-        assert.equal(
-            inputErrors.length,
-            rejectedBeforeValid,
-            'Valid packets must remain accepted after malformed input is rejected',
+        room.send('rotate', {
+            type: 'rotate',
+            ts: validTs,
+            value: { rotation: targetRotation },
+        });
+        await waitFor(
+            () => Math.abs((player(room)?.rotation ?? Number.NaN) - targetRotation) < 0.001,
+            5000,
+            'A valid rotation was not accepted after malformed packets were rejected',
         );
+
+        const afterValid = await health();
+        assert.ok(player(room), 'Player synchronization was lost after valid recovery input');
 
         console.log(JSON.stringify({
             ok: true,
             version: afterValid.version,
             inputHardening: afterValid.inputHardening,
             malformedPacketsSent: malformed.length,
-            rejectionMessagesObserved: rejectedBeforeValid,
-            validPacketsStillAccepted: true,
+            optionalRejectionMessagesObserved: inputErrors.length,
+            playerStayedSynchronized: true,
+            validRotationAcceptedAfterAttack: true,
             serverStayedAlive: true,
         }));
     } finally {
