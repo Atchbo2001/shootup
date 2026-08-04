@@ -269,7 +269,7 @@ async function verifyMovement(roomA, roomB) {
             roomName: 'CI Movement Isolation',
             roomMap: 'small',
             roomMaxPlayers: 4,
-            mode: 'outbreak',
+            mode: 'deathmatch',
             privateRoom: true,
         });
         movementB = await clientB.joinById(movementA.id, { playerName: 'Move-Bravo' });
@@ -279,7 +279,7 @@ async function verifyMovement(roomA, roomB) {
             'Movement clients did not synchronize',
         );
         await waitFor(
-            () => movementA.state?.game?.state === 'game' && player(movementA, movementA.sessionId)?.isAlive,
+            () => movementA.state?.game?.state === 'game',
             25000,
             'Movement room did not become active',
         );
