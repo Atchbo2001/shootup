@@ -104,7 +104,7 @@ await assertContains('packages/server/src/states/GameState.ts', 'startPlayerRelo
 await assertContains('packages/server/src/states/GameState.ts', 'Movement acknowledgement is intentionally not changed by rotation');
 await assertContains('packages/client/src/game/Game.ts', 'frame-rate independent');
 await assertContains('packages/client/src/game/Game.ts', 'movementAccumulator');
-await assertContains('packages/client/src/game/Game.ts', 'soft-local-correction');
+await assertContains('packages/client/src/game/Game.ts', 'Normal latency corrections are blended instead of hard-snapped');
 await assertContains('packages/client/src/screens/Game/components/HUD/WeaponStatus.tsx', 'RELOADING');
 await assertContains('packages/server/src/index.ts', "const VERSION = '3.3.0'");
 await assertContains('packages/server/src/index.ts', 'smoothMovement: true');
