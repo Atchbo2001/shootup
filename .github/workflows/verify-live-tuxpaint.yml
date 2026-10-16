@@ -46,13 +46,14 @@ jobs:
           node-version: "22"
       - name: Install real browser smoke-test runner
         run: |
-          npm install --no-save playwright@1.56.1
+          npm install --no-save playwright@1.56.1 pngjs@7.0.0
           npx playwright install --with-deps chromium
       - name: Diagnose original Tux Paint startup in Chromium
         shell: bash
         run: |
           node --input-type=module <<'JS'
           import { chromium } from 'playwright';
+          import { PNG } from 'pngjs';
           const browser = await chromium.launch({headless:true, args:['--no-sandbox']});
           const page = await browser.newPage({viewport:{width:1366,height:900}});
           const messages=[];
@@ -91,7 +92,30 @@ jobs:
             await page.screenshot({path:'tuxpaint-live-verified.png',fullPage:true});
             const cv=details.canvas;
             if (!cv || cv.width<640 || cv.height<400 || cv.rect.width<400 || (details.error?.text||'').trim()) throw new Error('Tux Paint did not render a usable native canvas: '+JSON.stringify(details));
-            console.log('Live native canvas initialized:',JSON.stringify(cv));
+            const output=messages.map(m=>m.description||'');
+            if(!output.some(s=>s.includes('[TPTRACE] EDITOR_READY')))
+              throw Error('Native Tux Paint editor did not finish initializing: '+JSON.stringify(output.slice(-40)));
+            if((details.module?.images||[]).length<8 || (details.module?.sounds||[]).length<8)
+              throw Error('Native Tux Paint data files unavailable: '+JSON.stringify(details.module));
+            const el=page.locator('canvas.emscripten');
+            const rect=await el.boundingBox();
+            if(!rect) throw Error('No visible drawing canvas bounds');
+            const base=PNG.sync.read(await el.screenshot());
+            const x=rect.x+rect.width*0.46;
+            const y=rect.y+rect.height*0.48;
+            await page.mouse.move(x,y);
+            await page.mouse.down();
+            await page.mouse.move(x+100,y+60,{steps:24});
+            await page.mouse.up();
+            await page.waitForTimeout(700);
+            const next=PNG.sync.read(await el.screenshot());
+            let count=0;
+            for(let i=0;i<base.data.length;i+=4)
+              if(Math.abs(base.data[i]-next.data[i])+Math.abs(base.data[i+1]-next.data[i+1])+Math.abs(base.data[i+2]-next.data[i+2])>80) count++;
+            console.log('LIVE DRAWING MODIFIED PIXELS:',count);
+            if(count<150) throw Error('Canvas did not respond to brush stroke');
+            await page.screenshot({path:'tuxpaint-live-after-paint.png',fullPage:true});
+            console.log('Live original Tux Paint editor initialized, drawing works:',JSON.stringify(cv));
           }finally{await browser.close();}
           JS
       - uses: actions/upload-artifact@v4
@@ -102,5 +126,6 @@ jobs:
             tuxpaint-live-verified.png
             tuxpaint-live-after-10s.png
             tuxpaint-live-after-55s.png
+            tuxpaint-live-after-paint.png
           if-no-files-found: ignore
           retention-days: 7
