@@ -94,5 +94,11 @@ src = src.replace(link_marker, '  -sEXPORTED_FUNCTIONS=\'["_main","_malloc","_fr
 sdl_marker = '  -sUSE_SDL=2'
 assert sdl_marker in src, "SDL compile flags changed"
 src = src.replace(sdl_marker, '  -DSDL_MAIN_HANDLED\n  -sUSE_SDL=2', 1)
+# The upstream build hides real compiler failures behind '| head -50' pipes:
+# shells without pipefail see head exit 0 while tuxpaint.o never exists.
+# Do not discard or truncate C compiler output; surface the first root error.
+src = src.replace('set -e\n', 'set -euo pipefail\n', 1)
+src = src.replace('2>&1 | head -50', '2>&1')
+src = src.replace('2>&1 | head -20', '2>&1')
 p.write_text(src)
 PY
