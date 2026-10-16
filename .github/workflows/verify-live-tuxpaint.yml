@@ -65,6 +65,11 @@ jobs:
             const response=await page.goto('https://shootup.shring.net/',{waitUntil:'domcontentloaded',timeout:60000});
             if (!response?.ok()) throw new Error('HTTP '+response?.status());
             await page.waitForTimeout(10000);
+            const splashShot=await page.screenshot({path:'tuxpaint-live-after-10s.png',fullPage:true});
+            console.log('10s screenshot captured; waiting to confirm editor is shown, not just splash...');
+            await page.waitForTimeout(45000);
+            const lateShot=await page.screenshot({path:'tuxpaint-live-after-55s.png',fullPage:true});
+            console.log('SCREENSHOT CHANGED FROM 10s TO 55s:',!splashShot.equals(lateShot));
             const details=await page.evaluate(()=>{
               const cv=document.querySelector('canvas.emscripten');
               const loading=document.getElementById('loading');
@@ -93,6 +98,9 @@ jobs:
         if: always()
         with:
           name: tuxpaint-live-browser-screenshot
-          path: tuxpaint-live-verified.png
+          path: |
+            tuxpaint-live-verified.png
+            tuxpaint-live-after-10s.png
+            tuxpaint-live-after-55s.png
           if-no-files-found: ignore
           retention-days: 7
