@@ -1,0 +1,84 @@
+name: Verify Live Shring Tux Paint
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/verify-live-tuxpaint.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify public HTTPS health and original WASM assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://shootup.shring.net"
+          for i in $(seq 1 25); do
+            if curl -fSLSs --connect-timeout 5 --max-time 15 "$BASE/health" -o /tmp/tuxpaint-health.json; then break; fi
+            echo "Waiting for Shootup to finish deployment ($i/25)"
+            sleep 4
+          done
+          cat /tmp/tuxpaint-health.json
+          grep -q '"ok":true' /tmp/tuxpaint-health.json
+          grep -q '"app":"tuxpaint-original-wasm"' /tmp/tuxpaint-health.json
+          curl -fSLSs --max-time 30 "$BASE/" -o /tmp/tuxpaint-live.html
+          grep -q "Tux Paint" /tmp/tuxpaint-live.html
+          for asset in tuxpaint.js tuxpaint.wasm tuxpaint.data; do
+            echo "Checking $asset"
+            curl -fSLSs --max-time 30 -I "$BASE/$asset" | grep -Ei '^HTTP/|^content-type:|^content-length:'
+          done
+          curl -fSLSs --max-time 30 -r 0-31 "$BASE/tuxpaint.wasm" -o /tmp/tuxpaint-32bytes
+          test "$(wc -c < /tmp/tuxpaint-32bytes)" -eq 32
+          echo "Live HTTPS, health, and WASM artifact check passed."
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install real browser smoke-test runner
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Verify original Tux Paint initializes in Chromium
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch({headless:true, args:['--no-sandbox']});
+          const page = await browser.newPage({viewport:{width:1366,height:900}});
+          const messages=[];
+          page.on('pageerror', e=>messages.push('JS: '+e.message));
+          page.on('console', m=>{if(m.type()==='error')messages.push('Console: '+m.text());});
+          try {
+            const response=await page.goto('https://shootup.shring.net/',{waitUntil:'domcontentloaded',timeout:60000});
+            if (!response?.ok()) throw new Error('HTTP '+response?.status());
+            await page.waitForFunction(()=>{
+              const cv=document.querySelector('canvas.emscripten');
+              const loading=document.getElementById('loading');
+              return cv && cv.width>0 && cv.height>0 && !cv.classList.contains('hidden') &&
+                (!loading || loading.classList.contains('hidden'));
+            },null,{timeout:90000,polling:500});
+            const details=await page.locator('canvas.emscripten').evaluate(cv=>{
+              const rect=cv.getBoundingClientRect();
+              return {width:cv.width,height:cv.height,visibleWidth:rect.width,visibleHeight:rect.height};
+            });
+            if (details.width<320 || details.height<240 || details.visibleWidth<320)
+              throw new Error('Canvas invalid: '+JSON.stringify(details));
+            await page.screenshot({path:'tuxpaint-live-verified.png'});
+            console.log('Live browser canvas initialized: '+JSON.stringify(details));
+            console.log('Browser console errors: '+JSON.stringify(messages.slice(0,20)));
+          } finally { await browser.close(); }
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tuxpaint-live-browser-screenshot
+          path: tuxpaint-live-verified.png
+          if-no-files-found: ignore
+          retention-days: 7
