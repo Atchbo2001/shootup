@@ -155,6 +155,26 @@ tux_src = tux_src.replace(paper_section,
 main_signature = 'int main(int argc, char *argv[])'
 assert tux_src.count(main_signature) == 1, "Expected exactly one Tux Paint startup function"
 tux_src = tux_src.replace(main_signature, 'int tuxpaint_web_main(int argc, char *argv[])', 1)
+# Browsers without shared-memory PThreads cannot create SDL worker threads.
+# The original startup became stuck immediately after this fontconfig thread
+# failure, leaving the native splash displayed indefinitely. Use the bundled
+# TTF font files without starting a Pango/cache worker in WebAssembly.
+font_begin = '  /* Let Pango & fontcache do their work without locking up */'
+font_end = '  medium_font = TuxPaint_Font_OpenFont'
+assert tux_src.count(font_begin) == 1 and tux_src.count(font_end) == 1, "Font worker section changed"
+first = tux_src.index(font_begin)
+last = tux_src.index(font_end, first)
+original_font_thread = tux_src[first:last]
+tux_src = tux_src[:first] + '''#ifdef __EMSCRIPTEN__
+  fontconfig_thread_done = 1;
+  fprintf(stderr, "[TPTRACE] PANGO_WORKER_SKIPPED (native browser mode)\\n");
+  fflush(stderr);
+#else
+''' + original_font_thread + '''
+#endif /* __EMSCRIPTEN__ */
+
+''' + tux_src[last:]
+
 # Diagnostic stage markers: the native canvas can show its original splash
 # while initialization is blocked. We require reaching the actual editor.
 trace_points = [
