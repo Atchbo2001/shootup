@@ -56,5 +56,11 @@ for name in "${MAGIC_SOURCES[@]}"; do
 done
 '''
 src = src.replace(marker, patch + "\n" + marker, 1)
+# Emscripten 4 does not automatically retain the original C entry point
+# when linking this explicit list of .o files. The original build silently
+# optimized out the entire Tux Paint application into a 9 KB WASM stub.
+link_marker = '  -sASYNCIFY\n'
+assert link_marker in src, "WASM linker argument section changed"
+src = src.replace(link_marker, '  -sEXPORTED_FUNCTIONS=\'["_main","_malloc","_free"]\'\n  -sINVOKE_RUN=1\n  -sASYNCIFY\n', 1)
 p.write_text(src)
 PY
