@@ -29,6 +29,7 @@ jobs:
           git -C /tmp/tuxpaint-web checkout 635f6a86f0085066f5c513fdc1224388b5bebd96
           test "$(git -C /tmp/tuxpaint-web rev-parse HEAD)" = "635f6a86f0085066f5c513fdc1224388b5bebd96"
           cd /tmp/tuxpaint-web/tuxpaint-0.9.35/tuxpaint-0.9.35
+          bash "$GITHUB_WORKSPACE/tuxpaint-browser/fix-wasm-plugins.sh"
           bash wasm/build.sh
           test -s build-wasm/tuxpaint.html
           test -s build-wasm/tuxpaint.js
