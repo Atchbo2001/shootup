@@ -197,6 +197,12 @@ for stage, loc in trace_points:
     statement = '  fprintf(stderr, "[TPTRACE] ' + stage + '\\n"); fflush(stderr);\n'
     tux_src = tux_src.replace(loc, statement + loc, 1)
 
+# SDL_Delay runs synchronously in the original desktop application's mainloop
+# and starves the browser's main JS/rendering thread. Replace the delays in
+# this native C file with Emscripten Asyncify's cooperative sleep.
+assert tux_src.count('SDL_Delay(') >= 10, "Native event loop layout changed"
+tux_src = '#ifdef __EMSCRIPTEN__\n#include <emscripten.h>\n#endif\n' + tux_src
+tux_src = tux_src.replace('SDL_Delay(', 'emscripten_sleep(')
 tux.write_text(tux_src)
 p.write_text(src)
 PY

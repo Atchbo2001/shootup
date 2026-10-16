@@ -14,7 +14,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Install Emscripten
@@ -67,7 +67,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm install --no-save --no-audit --no-fund playwright@1.56.1
+          npm install --no-save --no-audit --no-fund playwright@1.56.1 pngjs@7.0.0
           npx playwright install --with-deps chromium
           cd tuxpaint-package
           SERVER_PORT=31025 node server.mjs > /tmp/tuxpaint-chromium-server.log 2>&1 &
@@ -78,8 +78,9 @@ jobs:
             if curl -fsS http://127.0.0.1:31025/health >/tmp/tuxpaint-browser-health.json; then break; fi
             sleep 1
           done
-          node --input-type=module <<'JS'
+          timeout --signal=TERM --kill-after=5s 125s node --input-type=module <<'JS'
           import { chromium } from 'playwright';
+          import { PNG } from 'pngjs';
           const b=await chromium.launch({headless:true,args:['--no-sandbox','--autoplay-policy=no-user-gesture-required']});
           const p=await b.newPage({viewport:{width:1440,height:900}});
           const errors=[];
@@ -106,6 +107,27 @@ jobs:
               console.error('Native Tux Paint initialization blocked before editor:',JSON.stringify(errors.slice(-120)));
               throw Error('Native Tux Paint editor not ready; reached '+JSON.stringify(startupTrace));
             }
+            // Verify real user interaction produces a lasting change to the
+            // native canvas. The earlier build rendered only the loading logo.
+            const element=p.locator('canvas.emscripten');
+            const rect=await element.boundingBox();
+            if(!rect) throw Error('Tux Paint canvas is not visible');
+            await p.waitForTimeout(1000);
+            const original=PNG.sync.read(await element.screenshot());
+            const x=rect.x+rect.width*0.46, y=rect.y+rect.height*0.48;
+            await p.mouse.move(x,y);
+            await p.mouse.down();
+            await p.mouse.move(x+100,y+60,{steps:20});
+            await p.mouse.up();
+            await p.waitForTimeout(850);
+            const changed=PNG.sync.read(await element.screenshot());
+            if(original.width!==changed.width||original.height!==changed.height) throw Error('Canvas unexpectedly resized during brush test');
+            let diffPixels=0;
+            for(let i=0;i<original.data.length;i+=4){
+              if(Math.abs(original.data[i]-changed.data[i])+Math.abs(original.data[i+1]-changed.data[i+1])+Math.abs(original.data[i+2]-changed.data[i+2])>80) diffPixels++;
+            }
+            console.log('Live brush interaction changed',diffPixels,'pixels');
+            if(diffPixels<150) throw Error('Native canvas did not visibly respond to brush stroke');
             console.log('Browser rendering check passed',JSON.stringify(info));
             console.log('Browser warnings',JSON.stringify(errors.slice(-50)));
             await p.screenshot({path:'tuxpaint-live-ci.png',fullPage:true});
@@ -154,8 +176,8 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: tuxpaint-original-wasm-0.9.35-build3
-          name: Shring Tux Paint original 0.9.35 browser runtime — startup diagnostics
+          tag_name: tuxpaint-original-wasm-0.9.35-build4
+          name: Shring Tux Paint original 0.9.35 browser runtime — cooperative browser event loop
           make_latest: false
           body: |
             This build explicitly retains the native Tux Paint main entrypoint and passes real-browser rendering checks. It includes original graphics, brushes and sounds. It is not a visual remake. Collaboration is not yet included. Preserve the existing Pterodactyl backup before switching Shootup over to this runtime.
