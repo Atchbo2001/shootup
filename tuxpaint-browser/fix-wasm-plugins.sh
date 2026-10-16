@@ -31,7 +31,7 @@ echo "Symbol inspector: $LLVM_NM"
 for name in "${MAGIC_SOURCES[@]}"; do
   obj="${BUILDDIR}/obj/magic/${name}.o"
   mapfile -t exported_data < <(
-    llvm-nm -g --defined-only --format=posix "${obj}" |
+    "$LLVM_NM" -g --defined-only --format=posix "${obj}" |
     awk '$2 ~ /^[BCDGRSV]$/ {print $1}'
   )
   if ((${#exported_data[@]})); then
