@@ -35,6 +35,9 @@ jobs:
             echo "Checking $asset"
             curl -fSLSs --max-time 30 -I "$BASE/$asset" | grep -Ei '^HTTP/|^content-type:|^content-length:'
           done
+          WASM_LENGTH="$(curl -fSLSs --max-time 30 -I "$BASE/tuxpaint.wasm" | awk 'tolower($1)=="content-length:" {gsub("\\r","",$2); print $2}' | tail -1)"
+          echo "Deployed WASM length: $WASM_LENGTH bytes"
+          test "$WASM_LENGTH" -gt 250000
           curl -fSLSs --max-time 30 -r 0-31 "$BASE/tuxpaint.wasm" -o /tmp/tuxpaint-32bytes
           test "$(wc -c < /tmp/tuxpaint-32bytes)" -eq 32
           echo "Live HTTPS, health, and WASM artifact check passed."
@@ -82,7 +85,7 @@ jobs:
             console.log('CONSOLE:',JSON.stringify(messages.slice(-100)));
             await page.screenshot({path:'tuxpaint-live-verified.png',fullPage:true});
             const cv=details.canvas;
-            if (!cv || cv.width<320 || cv.height<240) throw new Error('Tux Paint native canvas did not initialize: '+JSON.stringify(details));
+            if (!cv || cv.width<640 || cv.height<400 || cv.rect.width<400 || (details.error?.text||'').trim()) throw new Error('Tux Paint did not render a usable native canvas: '+JSON.stringify(details));
             console.log('Live native canvas initialized:',JSON.stringify(cv));
           }finally{await browser.close();}
           JS
