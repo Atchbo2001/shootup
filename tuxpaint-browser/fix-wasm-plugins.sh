@@ -100,5 +100,35 @@ src = src.replace(sdl_marker, '  -DSDL_MAIN_HANDLED\n  -sUSE_SDL=2', 1)
 src = src.replace('set -e\n', 'set -euo pipefail\n', 1)
 src = src.replace('2>&1 | head -50', '2>&1')
 src = src.replace('2>&1 | head -20', '2>&1')
+# Supply the missing font-config, Pango and FriBidi compatibility declarations
+# before compiling the full native Tux Paint source. The upstream scaffold
+# lacked these includes and definitions, which were hidden by the head pipe.
+tux = Path("src/tuxpaint.c")
+tux_src = tux.read_text()
+bad_include = '#include "wasm/magic_static_registry.h"'
+assert bad_include in tux_src, "Tux Paint magic header include changed"
+tux_src = tux_src.replace(bad_include, '#include "magic_static_registry.h"')
+tux_src = '#ifdef __EMSCRIPTEN__\n#include <fontconfig/fontconfig.h>\n#endif\n' + tux_src
+tux.write_text(tux_src)
+
+pango = Path("wasm/stubs/pango/pango.h")
+pango_src = pango.read_text()
+pango_end = '#endif /* __PANGO_H__ */'
+assert pango_end in pango_src, "Pango stub include guard changed"
+pango_src = pango_src.replace(pango_end, '''
+static inline const char *pango_font_family_get_name(const PangoFontFamily *family)
+{
+  (void)family;
+  return "Sans";
+}
+''' + pango_end)
+pango.write_text(pango_src)
+
+fribidi = Path("wasm/stubs/fribidi/fribidi.h")
+fribidi_src = fribidi.read_text()
+bidi_marker = '#define FRIBIDI_TYPE_LTR 0x0010'
+assert bidi_marker in fribidi_src, "FriBidi stub type changed"
+fribidi_src = fribidi_src.replace(bidi_marker, bidi_marker + '\n#define FRIBIDI_TYPE_WL FRIBIDI_TYPE_LTR', 1)
+fribidi.write_text(fribidi_src)
 p.write_text(src)
 PY
