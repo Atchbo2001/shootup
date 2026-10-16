@@ -1,0 +1,35 @@
+name: Diagnose Live Tux Paint Wasm Entrypoint
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/diagnose-tuxpaint-runtime.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Download exact live JS and WASM
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 --max-time 60 https://shootup.shring.net/tuxpaint.js -o /tmp/tuxpaint.js
+          curl -fsSL --retry 3 --max-time 60 https://shootup.shring.net/tuxpaint.wasm -o /tmp/tuxpaint.wasm
+          ls -lh /tmp/tuxpaint.*
+      - name: Analyze runtime JS and WebAssembly exports
+        shell: bash
+        run: |
+          node <<'JS'
+          const fs=require('fs');
+          const source=fs.readFileSync('/tmp/tuxpaint.js','utf8');
+          const wasm=new WebAssembly.Module(fs.readFileSync('/tmp/tuxpaint.wasm'));
+          console.log('ENTRYPOINT EXPORTS:',JSON.stringify(WebAssembly.Module.exports(wasm).filter(x=>/main|__start|init|quit|audio|SDL/.test(x.name)).slice(0,60)));
+          console.log('ALL EXPORTS:',JSON.stringify(WebAssembly.Module.exports(wasm).slice(0,60)));
+          console.log('IMPORTS:',JSON.stringify(WebAssembly.Module.imports(wasm).slice(0,20)));
+          for(const needle of ['noInitialRun','callMain','_main','_start','function run(','function run(){','Module["calledRun"]','Module["noInitialRun"]','run();','runCaller','setStatus(']){
+            const i=source.indexOf(needle);
+            console.log('NEEDLE',JSON.stringify(needle),'found',i,'SNIPPET',i<0?'':JSON.stringify(source.slice(Math.max(0,i-250),i+500)));
+          }
+          console.log('SOURCE LEN:',source.length,'WASM LEN:',fs.statSync('/tmp/tuxpaint.wasm').size);
+          JS
