@@ -57,7 +57,7 @@ done
 '''
 src = src.replace(marker, patch + "\n" + marker, 1)
 # Add a main bridge if SDL2 exposes SDL_main rather than main.
-entry_marker = '# Phase 5: Linking'
+entry_marker = '# Phase 5: Link everything together'
 assert entry_marker in src, "Could not find WASM link stage"
 entry_block = r'''
 echo ""
