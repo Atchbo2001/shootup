@@ -45,7 +45,7 @@ jobs:
         run: |
           npm install --no-save playwright@1.56.1
           npx playwright install --with-deps chromium
-      - name: Verify original Tux Paint initializes in Chromium
+      - name: Diagnose original Tux Paint startup in Chromium
         shell: bash
         run: |
           node --input-type=module <<'JS'
@@ -53,27 +53,38 @@ jobs:
           const browser = await chromium.launch({headless:true, args:['--no-sandbox']});
           const page = await browser.newPage({viewport:{width:1366,height:900}});
           const messages=[];
-          page.on('pageerror', e=>messages.push('JS: '+e.message));
-          page.on('console', m=>{if(m.type()==='error')messages.push('Console: '+m.text());});
+          const put=(type,value)=>{messages.push({type,description:String(value).slice(0,1200)});console.log(type, String(value).slice(0,1200));};
+          page.on('pageerror',e=>put('pageerror',e.stack||e.message));
+          page.on('console',m=>put('console-'+m.type(),m.text()));
+          page.on('requestfailed',r=>put('requestfailed',r.url()+' '+r.failure()?.errorText));
+          page.on('response',r=>{if(r.status()>=400)put('http-'+r.status(),r.url());});
           try {
             const response=await page.goto('https://shootup.shring.net/',{waitUntil:'domcontentloaded',timeout:60000});
             if (!response?.ok()) throw new Error('HTTP '+response?.status());
-            await page.waitForFunction(()=>{
+            await page.waitForTimeout(10000);
+            const details=await page.evaluate(()=>{
               const cv=document.querySelector('canvas.emscripten');
               const loading=document.getElementById('loading');
-              return cv && cv.width>0 && cv.height>0 && !cv.classList.contains('hidden') &&
-                (!loading || loading.classList.contains('hidden'));
-            },null,{timeout:90000,polling:500});
-            const details=await page.locator('canvas.emscripten').evaluate(cv=>{
-              const rect=cv.getBoundingClientRect();
-              return {width:cv.width,height:cv.height,visibleWidth:rect.width,visibleHeight:rect.height};
+              const err=document.getElementById('error-msg');
+              const stat=document.getElementById('status');
+              const mod=window.Module;
+              return {
+                canvas:cv?{width:cv.width,height:cv.height,classes:cv.className,rect:{width:cv.getBoundingClientRect().width,height:cv.getBoundingClientRect().height}}:null,
+                loading:loading?{classes:loading.className,text:loading.innerText}:null,
+                error:err?{classes:err.className,text:err.innerText}:null,
+                status:stat?.innerText,
+                module:mod?{calledRun:mod.calledRun,ABORT:mod.ABORT,wasmMemory:!!mod.wasmMemory,FS:!!mod.FS,canvas:!!mod.canvas,exitStatus:mod.EXITSTATUS,postRun:mod.postRun?.length}:null,
+                title:document.title,
+                scripts:[...document.scripts].map(s=>s.src||'inline').slice(-8)
+              };
             });
-            if (details.width<320 || details.height<240 || details.visibleWidth<320)
-              throw new Error('Canvas invalid: '+JSON.stringify(details));
-            await page.screenshot({path:'tuxpaint-live-verified.png'});
-            console.log('Live browser canvas initialized: '+JSON.stringify(details));
-            console.log('Browser console errors: '+JSON.stringify(messages.slice(0,20)));
-          } finally { await browser.close(); }
+            console.log('DIAGNOSTICS:',JSON.stringify(details));
+            console.log('CONSOLE:',JSON.stringify(messages.slice(-100)));
+            await page.screenshot({path:'tuxpaint-live-verified.png',fullPage:true});
+            const cv=details.canvas;
+            if (!cv || cv.width<320 || cv.height<240) throw new Error('Tux Paint native canvas did not initialize: '+JSON.stringify(details));
+            console.log('Live native canvas initialized:',JSON.stringify(cv));
+          }finally{await browser.close();}
           JS
       - uses: actions/upload-artifact@v4
         if: always()
