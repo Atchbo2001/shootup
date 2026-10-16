@@ -56,6 +56,32 @@ for name in "${MAGIC_SOURCES[@]}"; do
 done
 '''
 src = src.replace(marker, patch + "\n" + marker, 1)
+# Add a main bridge if SDL2 exposes SDL_main rather than main.
+entry_marker = '# Phase 5: Linking'
+assert entry_marker in src, "Could not find WASM link stage"
+entry_block = r'''
+echo ""
+echo "--- Phase 4b: Verify and bridge native C entrypoint ---"
+echo "Tux Paint translation unit entrypoint symbols:"
+"$LLVM_NM" --defined-only --format=posix "$BUILDDIR/obj/tuxpaint.o" |
+  grep -E '(^|[[:space:]])(main|SDL_main|tuxpaint_main)([[:space:]]|$)' || true
+if "$LLVM_NM" --defined-only --format=posix "$BUILDDIR/obj/tuxpaint.o" | grep -qE '^main[[:space:]]'; then
+  echo "Original native main() is present"
+elif "$LLVM_NM" --defined-only --format=posix "$BUILDDIR/obj/tuxpaint.o" | grep -qE '^SDL_main[[:space:]]'; then
+  echo "Original SDL_main() exists; adding compatible main bridge"
+  cat > "$BUILDDIR/tuxpaint-main-bridge.c" <<'WRAPPER'
+extern int SDL_main(int argc, char **argv);
+int main(int argc, char **argv) { return SDL_main(argc, argv); }
+WRAPPER
+  emcc "${COMMON_FLAGS[@]}" -c "$BUILDDIR/tuxpaint-main-bridge.c" -o "$BUILDDIR/obj/tuxpaint-main-bridge.o"
+else
+  echo "ERROR: Tux Paint compiled object exports neither main nor SDL_main"
+  "$LLVM_NM" --defined-only --format=posix "$BUILDDIR/obj/tuxpaint.o" | head -60
+  exit 1
+fi
+'''
+src=src.replace(entry_marker,entry_block+'\n'+entry_marker,1)
+
 # Emscripten 4 does not automatically retain the original C entry point
 # when linking this explicit list of .o files. The original build silently
 # optimized out the entire Tux Paint application into a 9 KB WASM stub.
