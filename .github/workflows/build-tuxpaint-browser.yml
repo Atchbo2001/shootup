@@ -1,0 +1,92 @@
+name: Build Original Tux Paint for Shring Browser
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tuxpaint-browser/**"
+      - ".github/workflows/build-tuxpaint-browser.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: '4.0.8'
+      - name: Build upstream original Tux Paint 0.9.35 in WebAssembly
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone https://github.com/hefi46/tuxpaint-web.git /tmp/tuxpaint-web
+          git -C /tmp/tuxpaint-web checkout 635f6a86f0085066f5c513fdc1224388b5bebd96
+          test "$(git -C /tmp/tuxpaint-web rev-parse HEAD)" = "635f6a86f0085066f5c513fdc1224388b5bebd96"
+          cd /tmp/tuxpaint-web/tuxpaint-0.9.35/tuxpaint-0.9.35
+          bash wasm/build.sh
+          test -s build-wasm/tuxpaint.html
+          test -s build-wasm/tuxpaint.js
+          test -s build-wasm/tuxpaint.wasm
+          test -s build-wasm/tuxpaint.data
+          mkdir -p "${GITHUB_WORKSPACE}/tuxpaint-package/public"
+          cp build-wasm/tuxpaint.html "${GITHUB_WORKSPACE}/tuxpaint-package/public/index.html"
+          cp build-wasm/tuxpaint.js build-wasm/tuxpaint.wasm build-wasm/tuxpaint.data "${GITHUB_WORKSPACE}/tuxpaint-package/public/"
+          cp "${GITHUB_WORKSPACE}/tuxpaint-browser/server.mjs" "${GITHUB_WORKSPACE}/tuxpaint-package/"
+          cp "${GITHUB_WORKSPACE}/tuxpaint-browser/start.sh" "${GITHUB_WORKSPACE}/tuxpaint-package/"
+          cp "${GITHUB_WORKSPACE}/tuxpaint-browser/README.md" "${GITHUB_WORKSPACE}/tuxpaint-package/"
+          if test -f COPYING.txt; then cp COPYING.txt "${GITHUB_WORKSPACE}/tuxpaint-package/TUXPAINT-COPYING.txt"; fi
+          if test -f LICENSE.txt; then cp LICENSE.txt "${GITHUB_WORKSPACE}/tuxpaint-package/TUXPAINT-LICENSE.txt"; fi
+      - name: Validate Node 22 delivery, WASM bytes and byte-range serving
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd tuxpaint-package
+          SERVER_PORT=31025 node server.mjs > /tmp/tuxpaint-server.log 2>&1 &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for i in $(seq 1 40); do
+            if curl --fail --silent http://127.0.0.1:31025/health > /tmp/health.json; then break; fi
+            sleep 1
+          done
+          grep -q '"ok":true' /tmp/health.json
+          curl --fail --silent http://127.0.0.1:31025/ -o /tmp/tuxpaint-index.html
+          grep -q "Tux Paint" /tmp/tuxpaint-index.html
+          curl --fail --silent --head http://127.0.0.1:31025/tuxpaint.wasm | grep -qi 'application/wasm'
+          test "$(curl --fail --silent -r 0-31 http://127.0.0.1:31025/tuxpaint.wasm | wc -c)" -eq 32
+          echo "Tux Paint original browser runtime smoke test succeeded"
+      - name: Package Pterodactyl flat deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd tuxpaint-package
+          zip -qr "${GITHUB_WORKSPACE}/Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.zip" .
+          cd "${GITHUB_WORKSPACE}"
+          sha256sum Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.zip > Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.zip.sha256
+          ls -lh Shring-TuxPaint-*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shring-tuxpaint-0.9.35-original-browser
+          path: |
+            Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.zip
+            Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.zip.sha256
+          retention-days: 30
+          compression-level: 0
+      - name: Publish independent public build artifact release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: tuxpaint-original-wasm-0.9.35-build1
+          name: Shring Tux Paint original 0.9.35 browser runtime
+          make_latest: false
+          body: |
+            This release contains the original Tux Paint application compiled to WebAssembly with its original included sounds, brushes and images. It is not a visual remake. Collaboration is not yet included. Preserve the existing Pterodactyl backup before switching Shootup over to this runtime.
+          files: |
+            Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.zip
+            Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.zip.sha256
+          fail_on_unmatched_files: true
