@@ -176,8 +176,8 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: tuxpaint-original-wasm-0.9.35-build4
-          name: Shring Tux Paint original 0.9.35 browser runtime — cooperative browser event loop
+          tag_name: tuxpaint-original-wasm-0.9.35-build5
+          name: Shring Tux Paint original 0.9.35 browser runtime — complete native Magic assets and loader trace
           make_latest: false
           body: |
             This build explicitly retains the native Tux Paint main entrypoint and passes real-browser rendering checks. It includes original graphics, brushes and sounds. It is not a visual remake. Collaboration is not yet included. Preserve the existing Pterodactyl backup before switching Shootup over to this runtime.

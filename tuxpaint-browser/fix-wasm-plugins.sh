@@ -203,6 +203,24 @@ for stage, loc in trace_points:
 assert tux_src.count('SDL_Delay(') >= 10, "Native event loop layout changed"
 tux_src = '#ifdef __EMSCRIPTEN__\n#include <emscripten.h>\n#endif\n' + tux_src
 tux_src = tux_src.replace('SDL_Delay(', 'emscripten_sleep(')
+# Original Magic effects ship icons and audio in their own directories, not
+# in data/images or data/sounds. Preload them into the runtime paths expected
+# by the unmodified native plugin APIs.
+magic_asset_marker = '# Create savedir structure in preloaded data'
+assert magic_asset_marker in src, "Upstream asset stage changed"
+src = src.replace(magic_asset_marker, r'''
+echo "  Preloading original Magic images and sound effects..."
+mkdir -p "$DATADIR/images/magic" "$DATADIR/sounds/magic"
+cp -r "$SRCDIR/magic/icons/." "$DATADIR/images/magic/"
+cp -r "$SRCDIR/magic/sounds/." "$DATADIR/sounds/magic/"
+''' + magic_asset_marker, 1)
+
+# Trace each statically linked Magic plugin before initialization so a
+# slow or broken third-party effect can be isolated safely.
+magic_loop = '  for (sp = 0; sp < num_static; sp++)\n  {\n'
+assert tux_src.count(magic_loop) == 1, "Native static Magic loader changed"
+tux_src = tux_src.replace(magic_loop, magic_loop +
+  '    fprintf(stderr, "[TPMAGIC] START %d/%d %s\\n", sp + 1, num_static, splugins[sp].name); fflush(stderr);\n', 1)
 tux.write_text(tux_src)
 p.write_text(src)
 PY
