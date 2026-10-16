@@ -62,5 +62,11 @@ src = src.replace(marker, patch + "\n" + marker, 1)
 link_marker = '  -sASYNCIFY'
 assert link_marker in src, "WASM linker argument section changed"
 src = src.replace(link_marker, '  -sEXPORTED_FUNCTIONS=\'["_main","_malloc","_free"]\' \\\n  -sINVOKE_RUN=1 \\\n  -sASYNCIFY', 1)
+# SDL2 headers redefine main() as SDL_main() unless SDL_MAIN_HANDLED is set.
+# The original Emscripten build therefore had SDL_main but no C main, so
+# Emscripten silently emitted a dead 9 KB WASM instead of launching the app.
+sdl_marker = '  -sUSE_SDL=2'
+assert sdl_marker in src, "SDL compile flags changed"
+src = src.replace(sdl_marker, '  -DSDL_MAIN_HANDLED\n  -sUSE_SDL=2', 1)
 p.write_text(src)
 PY
