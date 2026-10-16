@@ -12,6 +12,22 @@ assert marker in src, "Upstream WASM build layout changed"
 patch = r'''
 echo ""
 echo "--- Phase 3b: Isolate Magic plugin global state for static WASM linking ---"
+LLVM_NM="$(command -v llvm-nm || true)"
+if [ -z "$LLVM_NM" ]; then
+  for version in 21 20 19 18 17 16 15 14; do
+    if command -v "llvm-nm-$version" >/dev/null 2>&1; then
+      LLVM_NM="$(command -v "llvm-nm-$version")"
+      break
+    fi
+  done
+fi
+if [ -z "$LLVM_NM" ]; then
+  echo "No LLVM symbol inspector installed; installing LLVM 19..."
+  sudo apt-get update -qq
+  sudo apt-get install -y -qq llvm-19
+  LLVM_NM="$(command -v llvm-nm-19)"
+fi
+echo "Symbol inspector: $LLVM_NM"
 for name in "${MAGIC_SOURCES[@]}"; do
   obj="${BUILDDIR}/obj/magic/${name}.o"
   mapfile -t exported_data < <(
