@@ -73,7 +73,7 @@ jobs:
                 loading:loading?{classes:loading.className,text:loading.innerText}:null,
                 error:err?{classes:err.className,text:err.innerText}:null,
                 status:stat?.innerText,
-                module:mod?{calledRun:mod.calledRun,ABORT:mod.ABORT,wasmMemory:!!mod.wasmMemory,FS:!!mod.FS,canvas:!!mod.canvas,exitStatus:mod.EXITSTATUS,postRun:mod.postRun?.length}:null,
+                module:mod?{calledRun:mod.calledRun,ABORT:mod.ABORT,runtimeInitialized:mod.runtimeInitialized,wasmMemory:!!mod.wasmMemory,FS:!!mod.FS,main:typeof mod._main,callMain:typeof mod.callMain,wasmExports:Object.keys(mod).filter(k=>k.startsWith("_")).slice(0,20),root:mod.FS?.readdir("/"),data:mod.FS?.readdir("/data"),images:mod.FS?.readdir("/data/images")?.slice(0,12),sounds:mod.FS?.readdir("/data/sounds")?.slice(0,12),canvas:!!mod.canvas,exitStatus:mod.EXITSTATUS,postRun:mod.postRun?.length}:null,
                 title:document.title,
                 scripts:[...document.scripts].map(s=>s.src||'inline').slice(-8)
               };
