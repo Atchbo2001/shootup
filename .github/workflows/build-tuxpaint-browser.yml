@@ -99,6 +99,13 @@ jobs:
               const e=document.getElementById('error-msg');
               return {width:c.width,height:c.height,status:s?.textContent,error:e?.textContent,classes:e?.className,main:typeof window.Module?._main};
             });
+            await p.waitForTimeout(10000);
+            const startupTrace=errors.filter(x=>x.includes('[TPTRACE]'));
+            console.log('Native Tux Paint startup milestones',JSON.stringify(startupTrace));
+            if(!startupTrace.some(x=>x.includes('[TPTRACE] EDITOR_READY'))) {
+              console.error('Native Tux Paint initialization blocked before editor:',JSON.stringify(errors.slice(-120)));
+              throw Error('Native Tux Paint editor not ready; reached '+JSON.stringify(startupTrace));
+            }
             console.log('Browser rendering check passed',JSON.stringify(info));
             console.log('Browser warnings',JSON.stringify(errors.slice(-50)));
             await p.screenshot({path:'tuxpaint-live-ci.png',fullPage:true});
@@ -147,8 +154,8 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: tuxpaint-original-wasm-0.9.35-build2
-          name: Shring Tux Paint original 0.9.35 browser runtime — retained application entrypoint
+          tag_name: tuxpaint-original-wasm-0.9.35-build3
+          name: Shring Tux Paint original 0.9.35 browser runtime — startup diagnostics
           make_latest: false
           body: |
             This build explicitly retains the native Tux Paint main entrypoint and passes real-browser rendering checks. It includes original graphics, brushes and sounds. It is not a visual remake. Collaboration is not yet included. Preserve the existing Pterodactyl backup before switching Shootup over to this runtime.

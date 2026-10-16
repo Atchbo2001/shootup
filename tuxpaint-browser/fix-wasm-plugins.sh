@@ -155,6 +155,28 @@ tux_src = tux_src.replace(paper_section,
 main_signature = 'int main(int argc, char *argv[])'
 assert tux_src.count(main_signature) == 1, "Expected exactly one Tux Paint startup function"
 tux_src = tux_src.replace(main_signature, 'int tuxpaint_web_main(int argc, char *argv[])', 1)
+# Diagnostic stage markers: the native canvas can show its original splash
+# while initialization is blocked. We require reaching the actual editor.
+trace_points = [
+    ("CONFIG_COMPLETE", "  setup();"),
+    ("PANGO_SETUP", "/* Let Pango & fontcache do their work without locking up */"),
+    ("MEDIUM_FONT", "  medium_font = TuxPaint_Font_OpenFont"),
+    ("CANVAS_ALLOCATION", "/* Create drawing canvas: */"),
+    ("LOAD_IMAGES", "/* Load other images: */"),
+    ("LOAD_BRUSHES", "/* Load brushes: */"),
+    ("LOAD_FONTS", "/* Load system fonts: */"),
+    ("LOAD_MAGIC", "/* Load magic tool plugins: */"),
+    ("MAGIC_RETURNED", "/* Load shape icons: */"),
+    ("BUILD_COLORS", "/* Generate color selection buttons: */"),
+    ("BUTTON_LABELS", "  create_button_labels();"),
+    ("SETUP_COMPLETE", "/* Seed random-number generator: */"),
+    ("EDITOR_READY", "  mainloop();"),
+]
+for stage, loc in trace_points:
+    assert tux_src.count(loc) == 1, f"Trace insertion marker changed: {stage} ({loc})"
+    statement = '  fprintf(stderr, "[TPTRACE] ' + stage + '\\n"); fflush(stderr);\n'
+    tux_src = tux_src.replace(loc, statement + loc, 1)
+
 tux.write_text(tux_src)
 p.write_text(src)
 PY
