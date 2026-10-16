@@ -73,6 +73,18 @@ int main(int argc, char **argv) {
 WRAPPER
 emcc -O2 -DSDL_MAIN_HANDLED -c "$BUILDDIR/tuxpaint-main-bridge.c" -o "$BUILDDIR/obj/tuxpaint-main-bridge.o"
 echo "Compiled explicit main() bridge."
+
+echo "--- Phase 4c: Generate original Tux Paint gperf configuration parser ---"
+if ! command -v gperf >/dev/null 2>&1; then
+  echo "Installing gperf to generate original settings parser"
+  sudo apt-get update -qq
+  sudo apt-get install -y -qq gperf
+fi
+gperf "$SRCDIR/src/parse.gperf" > "$BUILDDIR/obj/parse_step1.c"
+sed -e 's/^const struct/static const struct/' -e 's/_GNU/_TUX/' "$BUILDDIR/obj/parse_step1.c" > "$BUILDDIR/obj/parse.c"
+emcc "${COMMON_FLAGS[@]}" -c "$BUILDDIR/obj/parse.c" -o "$BUILDDIR/obj/parse.o"
+echo "Original gperf command-line parser compiled"
+
 '''
 src=src.replace(entry_marker,entry_block+'\n'+entry_marker,1)
 
