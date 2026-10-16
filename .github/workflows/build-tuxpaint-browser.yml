@@ -67,8 +67,10 @@ jobs:
           set -euo pipefail
           cd tuxpaint-package
           zip -qr "${GITHUB_WORKSPACE}/Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.zip" .
+          tar -czf "${GITHUB_WORKSPACE}/Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.tar.gz" .
           cd "${GITHUB_WORKSPACE}"
           sha256sum Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.zip > Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.zip.sha256
+          sha256sum Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.tar.gz > Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.tar.gz.sha256
           ls -lh Shring-TuxPaint-*
       - uses: actions/upload-artifact@v4
         with:
@@ -76,6 +78,8 @@ jobs:
           path: |
             Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.zip
             Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.zip.sha256
+            Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.tar.gz
+            Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.tar.gz.sha256
           retention-days: 30
           compression-level: 0
       - name: Publish independent public build artifact release
@@ -90,4 +94,6 @@ jobs:
           files: |
             Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.zip
             Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.zip.sha256
+            Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.tar.gz
+            Shring-TuxPaint-0.9.35-Browser-PTERODACTYL.tar.gz.sha256
           fail_on_unmatched_files: true
