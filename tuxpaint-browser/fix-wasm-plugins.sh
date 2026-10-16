@@ -40,7 +40,7 @@ for name in "${MAGIC_SOURCES[@]}"; do
       case "${sym}" in
         "${name}_"*) continue ;;
       esac
-      rename_flags+=("-D${sym}=${name}_${sym}")
+      rename_flags+=("-D${sym}=tuxwasmprivate_${name}_${sym}")
     done
     if ((${#rename_flags[@]})); then
       echo "  Namespacing ${name} (${#rename_flags[@]} globals)"
