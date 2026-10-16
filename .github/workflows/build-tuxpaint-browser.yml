@@ -35,7 +35,7 @@ jobs:
           test -s build-wasm/tuxpaint.js
           test -s build-wasm/tuxpaint.wasm
           test "$(stat -c %s build-wasm/tuxpaint.wasm)" -gt 250000
-          node -e 'const fs=require("fs");const m=new WebAssembly.Module(fs.readFileSync("build-wasm/tuxpaint.wasm"));const x=WebAssembly.Module.exports(m).map(y=>y.name); console.log("WASM exports",x.slice(0,50)); if(!x.includes("main")&&!x.includes("_main")) throw Error("Native Tux Paint main is absent");'
+          node -e 'const fs=require("fs");const m=new WebAssembly.Module(fs.readFileSync("build-wasm/tuxpaint.wasm"));const x=WebAssembly.Module.exports(m).map(y=>y.name); console.log("WASM exports",x.slice(0,50)); if(!x.includes("__main_argc_argv")&&!x.includes("main")&&!x.includes("_main")) throw Error("Native Tux Paint main is absent");'
           test -s build-wasm/tuxpaint.data
           mkdir -p "${GITHUB_WORKSPACE}/tuxpaint-package/public"
           cp build-wasm/tuxpaint.html "${GITHUB_WORKSPACE}/tuxpaint-package/public/index.html"
