@@ -61,24 +61,18 @@ entry_marker = '# Phase 5: Link everything together'
 assert entry_marker in src, "Could not find WASM link stage"
 entry_block = r'''
 echo ""
-echo "--- Phase 4b: Verify and bridge native C entrypoint ---"
-echo "Tux Paint translation unit entrypoint symbols:"
-"$LLVM_NM" --defined-only --format=posix "$BUILDDIR/obj/tuxpaint.o" |
-  grep -E '(^|[[:space:]])(main|SDL_main|tuxpaint_main)([[:space:]]|$)' || true
-if "$LLVM_NM" --defined-only --format=posix "$BUILDDIR/obj/tuxpaint.o" | grep -qE '^main[[:space:]]'; then
-  echo "Original native main() is present"
-elif "$LLVM_NM" --defined-only --format=posix "$BUILDDIR/obj/tuxpaint.o" | grep -qE '^SDL_main[[:space:]]'; then
-  echo "Original SDL_main() exists; adding compatible main bridge"
-  cat > "$BUILDDIR/tuxpaint-main-bridge.c" <<'WRAPPER'
-extern int SDL_main(int argc, char **argv);
-int main(int argc, char **argv) { return SDL_main(argc, argv); }
+echo "--- Phase 4b: Bridge original Tux Paint startup into Emscripten main() ---"
+echo "Original startup symbol:"
+"$LLVM_NM" -g --defined-only --format=posix "$BUILDDIR/obj/tuxpaint.o" |
+  grep -E 'tuxpaint_web_main|SDL_main|main' || true
+cat > "$BUILDDIR/tuxpaint-main-bridge.c" <<'WRAPPER'
+extern int tuxpaint_web_main(int argc, char **argv);
+int main(int argc, char **argv) {
+  return tuxpaint_web_main(argc, argv);
+}
 WRAPPER
-  emcc "${COMMON_FLAGS[@]}" -c "$BUILDDIR/tuxpaint-main-bridge.c" -o "$BUILDDIR/obj/tuxpaint-main-bridge.o"
-else
-  echo "ERROR: Tux Paint compiled object exports neither main nor SDL_main"
-  "$LLVM_NM" --defined-only --format=posix "$BUILDDIR/obj/tuxpaint.o" | head -60
-  exit 1
-fi
+emcc -O2 -DSDL_MAIN_HANDLED -c "$BUILDDIR/tuxpaint-main-bridge.c" -o "$BUILDDIR/obj/tuxpaint-main-bridge.o"
+echo "Compiled explicit main() bridge."
 '''
 src=src.replace(entry_marker,entry_block+'\n'+entry_marker,1)
 
@@ -144,6 +138,11 @@ paper_section = '#if !defined(WIN32) && !defined(__APPLE__) && !defined(__BEOS__
 assert paper_section in tux_src, "Libpaper help section changed"
 tux_src = tux_src.replace(paper_section,
   '#if !defined(WIN32) && !defined(__APPLE__) && !defined(__BEOS__) && !defined(__HAIKU__) && !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)\n/**\n * FIXME\n */\nstatic void show_available_papersizes',1)
+# Explicitly avoid SDL2 preprocessor rewriting main() and make startup
+# a unique exported native symbol for the separate link bridge.
+main_signature = 'int main(int argc, char *argv[])'
+assert tux_src.count(main_signature) == 1, "Expected exactly one Tux Paint startup function"
+tux_src = tux_src.replace(main_signature, 'int tuxpaint_web_main(int argc, char *argv[])', 1)
 tux.write_text(tux_src)
 p.write_text(src)
 PY
