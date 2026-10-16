@@ -130,5 +130,20 @@ bidi_marker = '#define FRIBIDI_TYPE_LTR 0x0010'
 assert bidi_marker in fribidi_src, "FriBidi stub type changed"
 fribidi_src = fribidi_src.replace(bidi_marker, bidi_marker + '\n#define FRIBIDI_TYPE_WL FRIBIDI_TYPE_LTR', 1)
 fribidi.write_text(fribidi_src)
+# Scope the WebAssembly static Magic registry separately from the disabled
+# desktop dlopen() path: both declare common locals in the upstream scaffold.
+start_magic = 'static void load_magic_plugins(void)\n{\n#ifdef __EMSCRIPTEN__\n'
+end_magic = '  goto magic_plugins_loaded;\n#endif /* __EMSCRIPTEN__ */'
+assert start_magic in tux_src and end_magic in tux_src, "Magic static initialization changed"
+tux_src = tux_src.replace(start_magic, start_magic + '  {\n', 1)
+tux_src = tux_src.replace(end_magic, '  goto magic_plugins_loaded;\n  }\n#endif /* __EMSCRIPTEN__ */', 1)
+
+# Native libpaper does not exist in browser builds; its help enumerator is
+# not needed and the actual callers are gated on PAPER_H.
+paper_section = '#if !defined(WIN32) && !defined(__APPLE__) && !defined(__BEOS__) && !defined(__HAIKU__) && !defined(__ANDROID__)\n/**\n * FIXME\n */\nstatic void show_available_papersizes'
+assert paper_section in tux_src, "Libpaper help section changed"
+tux_src = tux_src.replace(paper_section,
+  '#if !defined(WIN32) && !defined(__APPLE__) && !defined(__BEOS__) && !defined(__HAIKU__) && !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)\n/**\n * FIXME\n */\nstatic void show_available_papersizes',1)
+tux.write_text(tux_src)
 p.write_text(src)
 PY
